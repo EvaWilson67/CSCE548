@@ -9,25 +9,15 @@ import com.planttracker.model.Information;
 import com.planttracker.model.Location;
 import com.planttracker.model.Plant;
 
-import java.sql.SQLException;
+import java.sql.SQLException;       
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Scanner;
-import java.util.stream.Collectors;
 
 /**
- * Simple console frontend for the PlantTracker DAOs.
- *
- * Expects environment variables:
- *   PLANTDB_URL (default: jdbc:mysql://localhost:3306/PlantDB?serverTimezone=UTC)
- *   PLANTDB_USER (default: root)
- *   PLANTDB_PASS (default: empty)
- *
- * Usage (from project root, no build tool):
- * 1) compile all classes into out/
- * 2) run:
- *    java -cp "out:lib/*" com.example.planttracker.app.ConsoleApp
- *
- * (Use ';' instead of ':' on Windows classpath.)
+ * Console CRUD app for Plant + Care + Information + Location.
+ * Uses the separate DAO classes. Reads DB credentials from environment.
  */
 public class ConsoleApp {
     private final PlantDao plantDao;
@@ -58,14 +48,37 @@ public class ConsoleApp {
         while (!quit) {
             printMenu();
             String choice = prompt("Choose an option");
-            switch (choice) {
-                case "1": listAllPlants(); break;
-                case "2": viewPlantById(); break;
-                case "3": searchPlantsByName(); break;
-                case "4": listPlantsSummary(); break;
-                case "x":
-                case "X": quit = true; break;
-                default: System.out.println("Unknown choice. Try again."); break;
+            try {
+                switch (choice) {
+                    case "1": listPlants(); break;
+                    case "2": viewPlantById(); break;
+                    case "3": createPlantWithDetails(); break;
+                    case "4": updatePlant(); break;
+                    case "5": deletePlant(); break;
+
+                    case "10": createCare(); break;
+                    case "11": updateCare(); break;
+                    case "12": deleteCare(); break;
+                    case "13": viewCareByPlant(); break;
+
+                    case "20": createInformation(); break;
+                    case "21": updateInformation(); break;
+                    case "22": deleteInformation(); break;
+                    case "23": viewInformationByPlant(); break;
+
+                    case "30": createLocation(); break;
+                    case "31": updateLocation(); break;
+                    case "32": deleteLocation(); break;
+                    case "33": listLocationsForPlant(); break;
+
+                    case "x":
+                    case "X": quit = true; break;
+                    default: System.out.println("Unknown choice. Try again."); break;
+                }
+            } catch (SQLException e) {
+                System.err.println("Database error: " + e.getMessage());
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
             }
         }
         System.out.println("Goodbye 👋");
@@ -73,125 +86,331 @@ public class ConsoleApp {
 
     private void printHeader() {
         System.out.println("======================================");
-        System.out.println("       PlantTracker Console UI        ");
+        System.out.println("       PlantTracker Console CRUD      ");
         System.out.println("======================================");
     }
 
     private void printMenu() {
-        System.out.println("\nMenu:");
-        System.out.println("  1) List all plants (detailed)");
-        System.out.println("  2) View plant by ID (Plant + Care + Info + Locations)");
-        System.out.println("  3) Search plants by name");
-        System.out.println("  4) List plants (id, name, type) summary");
-        System.out.println("  X) Exit");
+        System.out.println("\nMenu (Plants)");
+        System.out.println("  1) List all plants");
+        System.out.println("  2) View plant by ID (with related records)");
+        System.out.println("  3) Create plant (and optionally Care/Info/Location)");
+        System.out.println("  4) Update plant");
+        System.out.println("  5) Delete plant");
+
+        System.out.println("\nMenu (Care)");
+        System.out.println(" 10) Create Care for a Plant");
+        System.out.println(" 11) Update Care for a Plant");
+        System.out.println(" 12) Delete Care for a Plant");
+        System.out.println(" 13) View Care by Plant ID");
+
+        System.out.println("\nMenu (Information)");
+        System.out.println(" 20) Create Information for a Plant");
+        System.out.println(" 21) Update Information for a Plant");
+        System.out.println(" 22) Delete Information for a Plant");
+        System.out.println(" 23) View Information by Plant ID");
+
+        System.out.println("\nMenu (Location)");
+        System.out.println(" 30) Create Location for a Plant");
+        System.out.println(" 31) Update Location (LightLevel)");
+        System.out.println(" 32) Delete Location for a Plant");
+        System.out.println(" 33) List Locations for a Plant");
+
+        System.out.println("\n  X) Exit");
     }
 
+    // ---------- Helpers ----------
     private String prompt(String label) {
         System.out.print(label + ": ");
         return scanner.nextLine().trim();
     }
 
-    private void listAllPlants() {
-        try {
-            List<Plant> all = plantDao.findAll();
-            if (all.isEmpty()) {
-                System.out.println("No plants found.");
-                return;
-            }
-            for (Plant p : all) {
-                printPlantFull(p);
-                System.out.println("--------------------------------------");
-            }
-            System.out.printf("Total: %d plants\n", all.size());
-        } catch (SQLException e) {
-            System.err.println("Error listing plants: " + e.getMessage());
-        }
+    private Integer promptInt(String label) {
+        String s = prompt(label);
+        if (s.isEmpty()) return null;
+        try { return Integer.parseInt(s); }
+        catch (NumberFormatException e) { System.out.println("Invalid number."); return null; }
     }
 
-    private void listPlantsSummary() {
-        try {
-            List<Plant> all = plantDao.findAll();
-            if (all.isEmpty()) {
-                System.out.println("No plants found.");
-                return;
-            }
-            System.out.printf("%-6s %-20s %-20s\n", "ID", "Name", "Type");
-            System.out.println("----------------------------------------------");
-            for (Plant p : all) {
-                System.out.printf("%-6d %-20s %-20s\n", p.getPlantId(), safe(p.getName(), 20), safe(p.getType(), 20));
-            }
-            System.out.printf("Total: %d plants\n", all.size());
-        } catch (SQLException e) {
-            System.err.println("Error listing plants summary: " + e.getMessage());
-        }
+    private LocalDate promptDate(String label) {
+        String s = prompt(label + " (YYYY-MM-DD or blank)");
+        if (s.isEmpty()) return null;
+        try { return LocalDate.parse(s); }
+        catch (DateTimeParseException e) { System.out.println("Invalid date format."); return null; }
     }
 
-    private void viewPlantById() {
-        String s = prompt("Enter Plant ID");
-        if (s.isEmpty()) { System.out.println("Cancelled."); return; }
-        int id;
-        try {
-            id = Integer.parseInt(s);
-        } catch (NumberFormatException ex) {
-            System.out.println("Invalid ID.");
+    private Boolean promptBool(String label) {
+        String s = prompt(label + " (y/n)");
+        if (s.isEmpty()) return null;
+        return s.equalsIgnoreCase("y") || s.equalsIgnoreCase("yes") || s.equals("1");
+    }
+
+    // ---------- Plant CRUD ----------
+    private void listPlants() throws SQLException {
+        List<Plant> all = plantDao.findAll();
+        if (all.isEmpty()) {
+            System.out.println("No plants found.");
             return;
         }
+        System.out.printf("%-6s %-20s %-20s %-8s %-12s %-15s\n", "ID", "Name", "Type", "Height", "Acquired", "Location");
+        for (Plant p : all) {
+            System.out.printf("%-6d %-20s %-20s %-8s %-12s %-15s\n",
+                    p.getPlantId(),
+                    safe(p.getName(), 20),
+                    safe(p.getType(), 20),
+                    p.getHeight() == null ? "N/A" : p.getHeight().toString(),
+                    p.getDateAcquired() == null ? "N/A" : p.getDateAcquired().toString(),
+                    safe(p.getLocationName(), 15));
+        }
+        System.out.println("Total: " + all.size());
+    }
 
-        try {
-            Plant p = plantDao.findById(id);
-            if (p == null) {
-                System.out.println("No plant found with ID " + id);
-                return;
-            }
-            printPlantFull(p);
-        } catch (SQLException e) {
-            System.err.println("Error retrieving plant: " + e.getMessage());
+    private void viewPlantById() throws SQLException {
+        Integer id = promptInt("Enter Plant ID");
+        if (id == null) return;
+        Plant p = plantDao.findById(id);
+        if (p == null) { System.out.println("Plant not found."); return; }
+        printPlantFull(p);
+    }
+
+    private void createPlantWithDetails() throws SQLException {
+        System.out.println("Create new Plant (leave Plant_ID blank to set manually if desired)");
+        Integer id = promptInt("Plant_ID (optional)");
+        String name = prompt("Name");
+        String type = prompt("Type");
+        Double height = null;
+        String h = prompt("Height (number, optional)");
+        if (!h.isEmpty()) {
+            try { height = Double.parseDouble(h); } catch (NumberFormatException e) { System.out.println("Invalid height ignored."); }
+        }
+        LocalDate acquired = promptDate("DateAcquired");
+        String locName = prompt("location_name");
+
+        Plant p = new Plant();
+        if (id != null) p.setPlantId(id);
+        p.setName(name);
+        p.setType(type);
+        p.setHeight(height);
+        p.setDateAcquired(acquired);
+        p.setLocationName(locName);
+
+        int inserted = plantDao.insert(p);
+        System.out.println("Inserted Plant rows: " + inserted);
+
+        // optional related records
+        if (promptBool("Add Care record now? (y/n)") == Boolean.TRUE) {
+            createCareForPlant(p.getPlantId());
+        }
+        if (promptBool("Add Information now? (y/n)") == Boolean.TRUE) {
+            createInformationForPlant(p.getPlantId());
+        }
+        if (promptBool("Add Location now? (y/n)") == Boolean.TRUE) {
+            createLocationForPlant(p.getPlantId());
         }
     }
 
-    private void searchPlantsByName() {
-        String q = prompt("Enter search term (partial name)");
-        if (q.isEmpty()) { System.out.println("Cancelled."); return; }
+    private void updatePlant() throws SQLException {
+        Integer id = promptInt("Enter Plant ID to update");
+        if (id == null) return;
+        Plant p = plantDao.findById(id);
+        if (p == null) { System.out.println("Plant not found."); return; }
 
-        try {
-            List<Plant> all = plantDao.findAll();
-            List<Plant> matches = all.stream()
-                    .filter(p -> p.getName() != null && p.getName().toLowerCase().contains(q.toLowerCase()))
-                    .collect(Collectors.toList());
+        String name = prompt("Name [" + safe(p.getName(),30) + "]");
+        if (!name.isEmpty()) p.setName(name);
 
-            if (matches.isEmpty()) {
-                System.out.println("No plants match \"" + q + "\"");
-                return;
-            }
+        String type = prompt("Type [" + safe(p.getType(),30) + "]");
+        if (!type.isEmpty()) p.setType(type);
 
-            System.out.printf("Found %d matches:\n", matches.size());
-            for (Plant p : matches) {
-                System.out.printf("ID: %d  Name: %s  Type: %s\n", p.getPlantId(), p.getName(), p.getType());
-            }
-            String pick = prompt("Enter ID to view details or press Enter to return");
-            if (!pick.isEmpty()) {
-                try {
-                    int id = Integer.parseInt(pick);
-                    Plant p = plantDao.findById(id);
-                    if (p != null) printPlantFull(p);
-                    else System.out.println("No plant with that ID.");
-                } catch (NumberFormatException nfe) {
-                    System.out.println("Invalid ID.");
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Error searching plants: " + e.getMessage());
+        String h = prompt("Height [" + (p.getHeight() == null ? "N/A" : p.getHeight().toString()) + "]");
+        if (!h.isEmpty()) {
+            try { p.setHeight(Double.parseDouble(h)); } catch (NumberFormatException e) { System.out.println("Invalid height ignored."); }
+        }
+
+        LocalDate d = promptDate("DateAcquired [" + (p.getDateAcquired() == null ? "N/A" : p.getDateAcquired().toString()) + "]");
+        if (d != null) p.setDateAcquired(d);
+
+        String loc = prompt("location_name [" + safe(p.getLocationName(),20) + "]");
+        if (!loc.isEmpty()) p.setLocationName(loc);
+
+        int updated = plantDao.update(p);
+        System.out.println("Updated rows: " + updated);
+    }
+
+    private void deletePlant() throws SQLException {
+        Integer id = promptInt("Enter Plant ID to delete");
+        if (id == null) return;
+        String confirm = prompt("Type DELETE to confirm deletion of plant " + id);
+        if (!"DELETE".equals(confirm)) { System.out.println("Aborted."); return; }
+        int del = plantDao.delete(id);
+        System.out.println("Deleted rows: " + del + " (children cascaded if FK set)");
+    }
+
+    // ---------- Care CRUD ----------
+    private void createCare() throws SQLException {
+        Integer pid = promptInt("Plant ID for Care");
+        if (pid == null) return;
+        createCareForPlant(pid);
+    }
+
+    private void createCareForPlant(int plantId) throws SQLException {
+        LocalDate lastSoil = promptDate("LastSoilChange");
+        LocalDate lastWater = promptDate("LastWatering");
+        Care c = new Care(plantId, lastSoil, lastWater);
+        int r = careDao.insert(c);
+        System.out.println("Inserted Care rows: " + r);
+    }
+
+    private void updateCare() throws SQLException {
+        Integer pid = promptInt("Plant ID for Care update");
+        if (pid == null) return;
+        Care c = careDao.findByPlantId(pid);
+        if (c == null) { System.out.println("No Care record found for that plant."); return; }
+
+        LocalDate d1 = promptDate("LastSoilChange [" + (c.getLastSoilChange()==null?"N/A":c.getLastSoilChange()) + "]");
+        if (d1 != null) c.setLastSoilChange(d1);
+        LocalDate d2 = promptDate("LastWatering [" + (c.getLastWatering()==null?"N/A":c.getLastWatering()) + "]");
+        if (d2 != null) c.setLastWatering(d2);
+
+        int u = careDao.update(c);
+        System.out.println("Updated Care rows: " + u);
+    }
+
+    private void deleteCare() throws SQLException {
+        Integer pid = promptInt("Plant ID for Care delete");
+        if (pid == null) return;
+        int d = careDao.delete(pid);
+        System.out.println("Deleted Care rows: " + d);
+    }
+
+    private void viewCareByPlant() throws SQLException {
+        Integer pid = promptInt("Plant ID to view Care");
+        if (pid == null) return;
+        Care c = careDao.findByPlantId(pid);
+        if (c == null) System.out.println("No Care record.");
+        else {
+            System.out.println("Last Soil Change: " + (c.getLastSoilChange()==null?"N/A":c.getLastSoilChange()));
+            System.out.println("Last Watering   : " + (c.getLastWatering()==null?"N/A":c.getLastWatering()));
         }
     }
 
+    // ---------- Information CRUD ----------
+    private void createInformation() throws SQLException {
+        Integer pid = promptInt("Plant ID for Information");
+        if (pid == null) return;
+        createInformationForPlant(pid);
+    }
+
+    private void createInformationForPlant(int plantId) throws SQLException {
+        Boolean fromAnother = promptBool("From another plant?");
+        String soil = prompt("SoilType");
+        String pot = prompt("PotSize");
+        Boolean globe = promptBool("Water globe required?");
+        Information i = new Information(plantId,
+                fromAnother == null ? false : fromAnother,
+                soil,
+                pot,
+                globe == null ? false : globe);
+        int r = informationDao.insert(i);
+        System.out.println("Inserted Information rows: " + r);
+    }
+
+    private void updateInformation() throws SQLException {
+        Integer pid = promptInt("Plant ID for Information update");
+        if (pid == null) return;
+        Information i = informationDao.findByPlantId(pid);
+        if (i == null) { System.out.println("No Information record found for that plant."); return; }
+
+        Boolean b1 = promptBool("From another plant? (current: " + i.isFromAnotherPlant() + ")");
+        if (b1 != null) i.setFromAnotherPlant(b1);
+        String s = prompt("SoilType [" + safe(i.getSoilType(), 30) + "]");
+        if (!s.isEmpty()) i.setSoilType(s);
+        String p = prompt("PotSize [" + safe(i.getPotSize(), 15) + "]");
+        if (!p.isEmpty()) i.setPotSize(p);
+        Boolean b2 = promptBool("Water globe required? (current: " + i.isWaterGlobeRequired() + ")");
+        if (b2 != null) i.setWaterGlobeRequired(b2);
+
+        int u = informationDao.update(i);
+        System.out.println("Updated Information rows: " + u);
+    }
+
+    private void deleteInformation() throws SQLException {
+        Integer pid = promptInt("Plant ID for Information delete");
+        if (pid == null) return;
+        int d = informationDao.delete(pid);
+        System.out.println("Deleted Information rows: " + d);
+    }
+
+    private void viewInformationByPlant() throws SQLException {
+        Integer pid = promptInt("Plant ID to view Information");
+        if (pid == null) return;
+        Information i = informationDao.findByPlantId(pid);
+        if (i == null) System.out.println("No Information record.");
+        else {
+            System.out.println("From another plant : " + i.isFromAnotherPlant());
+            System.out.println("Soil type          : " + safe(i.getSoilType(), 40));
+            System.out.println("Pot size           : " + safe(i.getPotSize(), 20));
+            System.out.println("Water globe req.   : " + i.isWaterGlobeRequired());
+        }
+    }
+
+    // ---------- Location CRUD ----------
+    private void createLocation() throws SQLException {
+        Integer pid = promptInt("Plant ID for new Location");
+        if (pid == null) return;
+        createLocationForPlant(pid);
+    }
+
+    private void createLocationForPlant(int plantId) throws SQLException {
+        String locName = prompt("location_name");
+        String light = prompt("LightLevel");
+        Location l = new Location(plantId, locName, light);
+        int r = locationDao.insert(l);
+        System.out.println("Inserted Location rows: " + r);
+    }
+
+    private void updateLocation() throws SQLException {
+        Integer pid = promptInt("Plant ID for Location update");
+        if (pid == null) return;
+        String locName = prompt("location_name (the key)");
+        if (locName.isEmpty()) { System.out.println("location_name required."); return; }
+        Location l = locationDao.find(pid, locName);
+        if (l == null) { System.out.println("Location record not found."); return; }
+        String light = prompt("LightLevel [" + safe(l.getLightLevel(), 20) + "]");
+        if (!light.isEmpty()) l.setLightLevel(light);
+        int u = locationDao.update(l);
+        System.out.println("Updated Location rows: " + u);
+    }
+
+    private void deleteLocation() throws SQLException {
+        Integer pid = promptInt("Plant ID for Location delete");
+        if (pid == null) return;
+        String locName = prompt("location_name to delete");
+        if (locName.isEmpty()) { System.out.println("location_name required."); return; }
+        int d = locationDao.delete(pid, locName);
+        System.out.println("Deleted Location rows: " + d);
+    }
+
+    private void listLocationsForPlant() throws SQLException {
+        Integer pid = promptInt("Plant ID to list Locations");
+        if (pid == null) return;
+        List<Location> locs = locationDao.findForPlant(pid);
+        if (locs == null || locs.isEmpty()) System.out.println("No locations.");
+        else {
+            System.out.printf("%-20s %-10s\n", "location_name", "LightLevel");
+            for (Location L : locs) {
+                System.out.printf("%-20s %-10s\n", L.getLocationName(), safe(L.getLightLevel(), 10));
+            }
+        }
+    }
+
+    // ---------- utility ----------
     private void printPlantFull(Plant p) {
-        System.out.printf("Plant ID: %d\n", p.getPlantId());
-        System.out.printf("Name    : %s\n", safe(p.getName(), 40));
-        System.out.printf("Type    : %s\n", safe(p.getType(), 40));
-        System.out.printf("Height  : %s\n", p.getHeight() == null ? "N/A" : p.getHeight().toString());
-        System.out.printf("Acquired: %s\n", p.getDateAcquired() == null ? "N/A" : p.getDateAcquired().toString());
-        System.out.printf("LocName : %s\n", safe(p.getLocationName(), 40));
-
+        System.out.println("Plant ID: " + p.getPlantId());
+        System.out.println("Name    : " + safe(p.getName(), 40));
+        System.out.println("Type    : " + safe(p.getType(), 40));
+        System.out.println("Height  : " + (p.getHeight() == null ? "N/A" : p.getHeight()));
+        System.out.println("Acquired: " + (p.getDateAcquired() == null ? "N/A" : p.getDateAcquired()));
+        System.out.println("LocName : " + safe(p.getLocationName(), 40));
         try {
             Care c = careDao.findByPlantId(p.getPlantId());
             Information i = informationDao.findByPlantId(p.getPlantId());
@@ -199,31 +418,24 @@ public class ConsoleApp {
 
             System.out.println("\n--- Care ---");
             if (c != null) {
-                System.out.printf("Last Soil Change: %s\n", c.getLastSoilChange() == null ? "N/A" : c.getLastSoilChange());
-                System.out.printf("Last Watering   : %s\n", c.getLastWatering() == null ? "N/A" : c.getLastWatering());
-            } else {
-                System.out.println("No care record.");
-            }
+                System.out.println("LastSoilChange: " + (c.getLastSoilChange()==null?"N/A":c.getLastSoilChange()));
+                System.out.println("LastWatering  : " + (c.getLastWatering()==null?"N/A":c.getLastWatering()));
+            } else System.out.println("No Care record.");
 
             System.out.println("\n--- Information ---");
             if (i != null) {
-                System.out.printf("From Another Plant : %s\n", i.isFromAnotherPlant());
-                System.out.printf("Soil Type          : %s\n", safe(i.getSoilType(), 40));
-                System.out.printf("Pot Size           : %s\n", safe(i.getPotSize(), 20));
-                System.out.printf("Water Globe Req.   : %s\n", i.isWaterGlobeRequired());
-            } else {
-                System.out.println("No information record.");
-            }
+                System.out.println("FromAnotherPlant: " + i.isFromAnotherPlant());
+                System.out.println("SoilType        : " + safe(i.getSoilType(),40));
+                System.out.println("PotSize         : " + safe(i.getPotSize(),20));
+                System.out.println("WaterGlobeReq   : " + i.isWaterGlobeRequired());
+            } else System.out.println("No Information record.");
 
             System.out.println("\n--- Locations ---");
             if (locs != null && !locs.isEmpty()) {
                 for (Location L : locs) {
-                    System.out.printf(" - %s (Light: %s)\n", L.getLocationName(), safe(L.getLightLevel(), 20));
+                    System.out.println(" - " + L.getLocationName() + " (Light: " + safe(L.getLightLevel(),20) + ")");
                 }
-            } else {
-                System.out.println("No locations recorded.");
-            }
-
+            } else System.out.println("No locations recorded.");
         } catch (SQLException e) {
             System.err.println("Error retrieving related records: " + e.getMessage());
         }

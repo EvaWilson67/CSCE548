@@ -1,0 +1,8 @@
+# Compile EVERYTHING at once
+Remove-Item -Recurse -Force .\out -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path .\out | Out-Null
+
+$srcFiles = Get-ChildItem -Recurse -Filter *.java src | ForEach-Object { $_.FullName }
+javac -d out -cp "lib/*" $srcFiles
+
+java -cp "out;lib/*" com.planttracker.app.ConsoleApp
