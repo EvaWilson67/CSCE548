@@ -87,4 +87,19 @@ public class PlantDao {
         p.setLocationName(rs.getString("location_name"));
         return p;
     }
+
+public int getMaxPlantId() throws SQLException {
+    String sql = "SELECT MAX(Plant_ID) AS mx FROM Plant";
+    try (Connection c = DriverManager.getConnection(url, user, pass);
+         PreparedStatement ps = c.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+            int mx = rs.getInt("mx");
+            if (rs.wasNull()) return 0;
+            return mx;
+        } else {
+            return 0;
+        }
+    }
+}
 }
