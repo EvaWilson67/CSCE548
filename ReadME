@@ -1,3 +1,7 @@
+Switch to plant-tracker folder
+
+Add password for the database in the console app
+
 # Compile EVERYTHING at once
 Remove-Item -Recurse -Force .\out -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path .\out | Out-Null
