@@ -313,11 +313,19 @@ public class ConsoleApp {
             p.setDateAcquired(d);
 
         String loc = prompt("location_name [" + safe(p.getLocationName(), 20) + "]");
+        String oldLoc = p.getLocationName();
         if (!loc.isEmpty())
             p.setLocationName(loc);
 
+        // perform plant update
         int updated = plantDao.update(p);
         System.out.println("Updated rows: " + updated);
+
+        // if the location_name changed, also update Location table rows
+        if (!loc.isEmpty() && (oldLoc == null || !oldLoc.equals(loc))) {
+            int rows = locationDao.renameLocationForPlant(p.getPlantId(), loc);
+            System.out.println("Renamed Location rows: " + rows);
+        }
     }
 
     private void deletePlant() throws SQLException {
