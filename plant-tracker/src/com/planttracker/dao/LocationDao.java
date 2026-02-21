@@ -11,13 +11,15 @@ public class LocationDao {
     private final String url, user, pass;
 
     public LocationDao(String url, String user, String pass) {
-        this.url = url; this.user = user; this.pass = pass;
+        this.url = url;
+        this.user = user;
+        this.pass = pass;
     }
 
     public int insert(Location loc) throws SQLException {
         String sql = "INSERT INTO Location (Plant_ID, location_name, LightLevel) VALUES (?, ?, ?)";
         try (Connection c = DbUtil.getConnection(url, user, pass);
-             PreparedStatement ps = c.prepareStatement(sql)) {
+                PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, loc.getPlantId());
             ps.setString(2, loc.getLocationName());
             ps.setString(3, loc.getLightLevel());
@@ -28,11 +30,12 @@ public class LocationDao {
     public Location find(int plantId, String locationName) throws SQLException {
         String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ? AND location_name = ?";
         try (Connection c = DbUtil.getConnection(url, user, pass);
-             PreparedStatement ps = c.prepareStatement(sql)) {
+                PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, plantId);
             ps.setString(2, locationName);
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return map(rs);
+                if (rs.next())
+                    return map(rs);
                 return null;
             }
         }
@@ -42,10 +45,11 @@ public class LocationDao {
         String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ?";
         List<Location> out = new ArrayList<>();
         try (Connection c = DbUtil.getConnection(url, user, pass);
-             PreparedStatement ps = c.prepareStatement(sql)) {
+                PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, plantId);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) out.add(map(rs));
+                while (rs.next())
+                    out.add(map(rs));
             }
         }
         return out;
@@ -54,7 +58,7 @@ public class LocationDao {
     public int update(Location loc) throws SQLException {
         String sql = "UPDATE Location SET LightLevel = ? WHERE Plant_ID = ? AND location_name = ?";
         try (Connection c = DbUtil.getConnection(url, user, pass);
-             PreparedStatement ps = c.prepareStatement(sql)) {
+                PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, loc.getLightLevel());
             ps.setInt(2, loc.getPlantId());
             ps.setString(3, loc.getLocationName());
@@ -65,7 +69,7 @@ public class LocationDao {
     public int delete(int plantId, String locationName) throws SQLException {
         String sql = "DELETE FROM Location WHERE Plant_ID = ? AND location_name = ?";
         try (Connection c = DbUtil.getConnection(url, user, pass);
-             PreparedStatement ps = c.prepareStatement(sql)) {
+                PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, plantId);
             ps.setString(2, locationName);
             return ps.executeUpdate();
@@ -78,5 +82,19 @@ public class LocationDao {
         l.setLocationName(rs.getString("location_name"));
         l.setLightLevel(rs.getString("LightLevel"));
         return l;
+    }
+
+    public List<Location> findAll() throws SQLException {
+        List<Location> out = new ArrayList<>();
+        String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location";
+        try (Connection c = DbUtil.getConnection(url, user, pass);
+                PreparedStatement ps = c.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                out.add(map(rs)); // assumes private Location map(ResultSet) exists
+            }
+        }
+        return out;
     }
 }
