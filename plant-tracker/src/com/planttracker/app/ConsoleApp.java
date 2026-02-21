@@ -26,20 +26,25 @@ public class ConsoleApp {
     private final LocationDao locationDao;
     private final Scanner scanner = new Scanner(System.in);
 
-    public ConsoleApp(String url, String user, String pass) {
-        this.plantDao = new PlantDao(url, user, pass);
-        this.careDao = new CareDao(url, user, pass);
-        this.informationDao = new InformationDao(url, user, pass);
-        this.locationDao = new LocationDao(url, user, pass);
+    // Use no-arg DAOs (they read DbConfig/Env via DbUtil.getConnection())
+    public ConsoleApp() {
+        this.plantDao = new PlantDao();
+        this.careDao = new CareDao();
+        this.informationDao = new InformationDao();
+        this.locationDao = new LocationDao();
     }
 
     public static void main(String[] args) {
-        String url = System.getenv().getOrDefault("PLANTDB_URL",
-                "jdbc:mysql://localhost:3306/PlantDB?serverTimezone=UTC");
-        String user = System.getenv().getOrDefault("PLANTDB_USER", "root");
-        String pass = System.getenv().getOrDefault("PLANTDB_PASS", "");
+        // Keep env fallback for convenience, but DAOs read DbConfig which already uses
+        // env vars.
+        // String url = System.getenv().getOrDefault("PLANTDB_URL",
+        // "jdbc:mysql://localhost:3306/PlantDB?serverTimezone=UTC");
+        // String user = System.getenv().getOrDefault("PLANTDB_USER", "root");
+        // String pass = System.getenv().getOrDefault("PLANTDB_PASS", "");
 
-        ConsoleApp app = new ConsoleApp(url, user, pass);
+        // You can set env vars and let DbConfig pick them up. We construct ConsoleApp
+        // without args.
+        ConsoleApp app = new ConsoleApp();
         app.run();
     }
 
@@ -116,6 +121,8 @@ public class ConsoleApp {
                 }
             } catch (SQLException e) {
                 System.err.println("Database error: " + e.getMessage());
+                e.printStackTrace(); // <- shows where in code the error originated
+
             } catch (Exception e) {
                 System.err.println("Error: " + e.getMessage());
             }
@@ -130,31 +137,30 @@ public class ConsoleApp {
     }
 
     private void printMenu() {
-    System.out.println();
-    System.out.println("============================================================");
-    System.out.println("                     PlantTracker Menu                      ");
-    System.out.println("============================================================");
+        System.out.println();
+        System.out.println("============================================================");
+        System.out.println("                     PlantTracker Menu                      ");
+        System.out.println("============================================================");
 
-    System.out.printf("%-35s %-35s%n", "PLANTS", "CARE");
-    System.out.printf("%-35s %-35s%n", " 1) List all plants", "10) Create Care for a Plant");
-    System.out.printf("%-35s %-35s%n", " 2) View plant by ID", "11) Update Care for a Plant");
-    System.out.printf("%-35s %-35s%n", " 3) Create plant", "12) Delete Care for a Plant");
-    System.out.printf("%-35s %-35s%n", " 4) Update plant", "13) View Care by Plant ID");
-    System.out.printf("%-35s %-35s%n", " 5) Delete plant", "");
+        System.out.printf("%-35s %-35s%n", "PLANTS", "CARE");
+        System.out.printf("%-35s %-35s%n", " 1) List all plants", "10) Create Care for a Plant");
+        System.out.printf("%-35s %-35s%n", " 2) View plant by ID", "11) Update Care for a Plant");
+        System.out.printf("%-35s %-35s%n", " 3) Create plant", "12) Delete Care for a Plant");
+        System.out.printf("%-35s %-35s%n", " 4) Update plant", "13) View Care by Plant ID");
+        System.out.printf("%-35s %-35s%n", " 5) Delete plant", "");
 
-    System.out.println();
+        System.out.println();
 
-    System.out.printf("%-35s %-35s%n", "INFORMATION", "LOCATION");
-    System.out.printf("%-35s %-35s%n", "20) Create Information", "30) Create Location");
-    System.out.printf("%-35s %-35s%n", "21) Update Information", "31) Update Location");
-    System.out.printf("%-35s %-35s%n", "22) Delete Information", "32) Delete Location");
-    System.out.printf("%-35s %-35s%n", "23) View Information", "33) List Locations");
+        System.out.printf("%-35s %-35s%n", "INFORMATION", "LOCATION");
+        System.out.printf("%-35s %-35s%n", "20) Create Information", "30) Create Location");
+        System.out.printf("%-35s %-35s%n", "21) Update Information", "31) Update Location");
+        System.out.printf("%-35s %-35s%n", "22) Delete Information", "32) Delete Location");
+        System.out.printf("%-35s %-35s%n", "23) View Information", "33) List Location for Plant");
 
-    System.out.println();
-    System.out.println(" X) Exit");
-    System.out.println("============================================================");
-}
-
+        System.out.println();
+        System.out.println(" X) Exit");
+        System.out.println("============================================================");
+    }
 
     // ---------- Helpers ----------
     private String prompt(String label) {
@@ -227,8 +233,7 @@ public class ConsoleApp {
     }
 
     private void createPlantWithDetails() throws SQLException {
-        System.out.println("Create new Plant (leave Plant_ID blank to auto-assign)");
-        // Integer id = promptInt("Plant_ID (optional)");
+        System.out.println("Create new Plant (ID will be assigned by the DB if auto-increment enabled)");
         String name = prompt("Name");
         String type = prompt("Type");
         Double height = null;
@@ -243,13 +248,8 @@ public class ConsoleApp {
         LocalDate acquired = promptDate("DateAcquired");
         String locName = prompt("location_name (optional - if provided a Location row will be created)");
 
-        // Build Plant object
+        // Build Plant object (don't set ID — DB will generate if auto-increment)
         Plant p = new Plant();
-        int maxId = plantDao.getMaxPlantId(); // add this method to PlantDao (see below)
-        int nextId = maxId + 1;
-        p.setPlantId(nextId);
-        System.out.println("assigning Plant_ID = " + nextId);
-
         p.setName(name);
         p.setType(type);
         p.setHeight(height);
@@ -259,8 +259,7 @@ public class ConsoleApp {
         int inserted = plantDao.insert(p);
         System.out.println("Inserted Plant rows: " + inserted + " (Plant_ID=" + p.getPlantId() + ")");
 
-        // Optional related records (note: location auto-created below if locName
-        // provided)
+        // Optional related records
         if (promptBool("Add Care record now? (y/n)") == Boolean.TRUE) {
             createCareForPlant(p.getPlantId());
         }
@@ -269,15 +268,12 @@ public class ConsoleApp {
         }
 
         // If the user provided a location_name with the Plant, create a Location row
-        // automatically
         if (locName != null && !locName.trim().isEmpty()) {
             Location autoLoc = new Location(p.getPlantId(), locName.trim(), null);
             int r = locationDao.insert(autoLoc);
             System.out.println("Automatically inserted Location rows: " + r + "  (Plant_ID=" + p.getPlantId()
                     + ", location_name='" + locName.trim() + "')");
         } else {
-            // If user didn't provide location_name but still wants to add a location,
-            // prompt
             if (promptBool("Add Location now? (y/n)") == Boolean.TRUE) {
                 createLocationForPlant(p.getPlantId());
             }
@@ -371,7 +367,7 @@ public class ConsoleApp {
         if (d2 != null)
             c.setLastWatering(d2);
 
-        int u = careDao.update(c);
+        int u = careDao.updateByPlantId(c);
         System.out.println("Updated Care rows: " + u);
     }
 
@@ -379,7 +375,7 @@ public class ConsoleApp {
         Integer pid = promptInt("Plant ID for Care delete");
         if (pid == null)
             return;
-        int d = careDao.delete(pid);
+        int d = careDao.deleteByPlantId(pid);
         System.out.println("Deleted Care rows: " + d);
     }
 
@@ -441,7 +437,7 @@ public class ConsoleApp {
         if (b2 != null)
             i.setWaterGlobeRequired(b2);
 
-        int u = informationDao.update(i);
+        int u = informationDao.updateByPlantId(i);
         System.out.println("Updated Information rows: " + u);
     }
 
@@ -449,7 +445,7 @@ public class ConsoleApp {
         Integer pid = promptInt("Plant ID for Information delete");
         if (pid == null)
             return;
-        int d = informationDao.delete(pid);
+        int d = informationDao.deleteByPlantId(pid);
         System.out.println("Deleted Information rows: " + d);
     }
 
@@ -488,12 +484,7 @@ public class ConsoleApp {
         Integer pid = promptInt("Plant ID for Location update");
         if (pid == null)
             return;
-        String locName = prompt("location_name (the key)");
-        if (locName.isEmpty()) {
-            System.out.println("location_name required.");
-            return;
-        }
-        Location l = locationDao.find(pid, locName);
+        Location l = locationDao.findByPlantId(pid);
         if (l == null) {
             System.out.println("Location record not found.");
             return;
@@ -501,7 +492,7 @@ public class ConsoleApp {
         String light = prompt("LightLevel [" + safe(l.getLightLevel(), 20) + "]");
         if (!light.isEmpty())
             l.setLightLevel(light);
-        int u = locationDao.update(l);
+        int u = locationDao.updateByPlantId(l);
         System.out.println("Updated Location rows: " + u);
     }
 
@@ -509,12 +500,7 @@ public class ConsoleApp {
         Integer pid = promptInt("Plant ID for Location delete");
         if (pid == null)
             return;
-        String locName = prompt("location_name to delete");
-        if (locName.isEmpty()) {
-            System.out.println("location_name required.");
-            return;
-        }
-        int d = locationDao.delete(pid, locName);
+        int d = locationDao.deleteByPlantId(pid);
         System.out.println("Deleted Location rows: " + d);
     }
 
@@ -522,23 +508,21 @@ public class ConsoleApp {
         Integer pid = promptInt("Plant ID to list Locations");
         if (pid == null)
             return;
-        List<Location> locs = locationDao.findForPlant(pid);
-        if (locs == null || locs.isEmpty())
+        Location l = locationDao.findByPlantId(pid);
+        if (l == null)
             System.out.println("No locations.");
         else {
-            // System.out.printf("%-20s %-10s\n", "location_name", "LightLevel");
-            for (Location L : locs) {
-                    System.out.println("LocationName    : " +
-                            (L.getLocationName() == null || L.getLocationName().trim().isEmpty()
-                                    ? "(none)"
-                                    : L.getLocationName()));
+            System.out.println("LocationName    : " +
+                    (l.getLocationName() == null || l.getLocationName().trim().isEmpty()
+                            ? "(none)"
+                            : l.getLocationName()));
 
-                    System.out.println("LightLevel      : " +
-                            (L.getLightLevel() == null || L.getLightLevel().trim().isEmpty()
-                                    ? "N/A"
-                                    : safe(L.getLightLevel(), 20)));
+            System.out.println("LightLevel      : " +
+                    (l.getLightLevel() == null || l.getLightLevel().trim().isEmpty()
+                            ? "N/A"
+                            : safe(l.getLightLevel(), 20)));
 
-                    System.out.println();            }
+            System.out.println();
         }
     }
 
@@ -553,7 +537,7 @@ public class ConsoleApp {
         try {
             Care c = careDao.findByPlantId(p.getPlantId());
             Information i = informationDao.findByPlantId(p.getPlantId());
-            List<Location> locs = locationDao.findForPlant(p.getPlantId());
+            Location l = locationDao.findByPlantId(p.getPlantId());
 
             System.out.println("\n--- Care ---");
             if (c != null) {
@@ -572,26 +556,25 @@ public class ConsoleApp {
             } else
                 System.out.println("No Information record.");
 
-            System.out.println("\n--- Locations ---");
-            if (locs != null && !locs.isEmpty()) {
-                for (Location L : locs) {
-                    System.out.println("LocationName    : " +
-                            (L.getLocationName() == null || L.getLocationName().trim().isEmpty()
-                                    ? "(none)"
-                                    : L.getLocationName()));
+            System.out.println("\n--- Location ---");
+            if (l != null) {
+                System.out.println("LocationName    : " +
+                        (l.getLocationName() == null || l.getLocationName().trim().isEmpty()
+                                ? "(none)"
+                                : l.getLocationName()));
 
-                    System.out.println("LightLevel      : " +
-                            (L.getLightLevel() == null || L.getLightLevel().trim().isEmpty()
-                                    ? "N/A"
-                                    : safe(L.getLightLevel(), 20)));
+                System.out.println("LightLevel      : " +
+                        (l.getLightLevel() == null || l.getLightLevel().trim().isEmpty()
+                                ? "N/A"
+                                : safe(l.getLightLevel(), 20)));
 
-                    System.out.println();
-
-                }
+                System.out.println();
             } else
-                System.out.println("No locations recorded.");
+                System.out.println("No location recorded.");
         } catch (SQLException e) {
             System.err.println("Error retrieving related records: " + e.getMessage());
+            e.printStackTrace(); // <-- add this to see the exact DAO + line number
+
         }
     }
 

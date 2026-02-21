@@ -1,25 +1,25 @@
 package com.planttracker.dao;
 
-import com.planttracker.DbUtil;
 import com.planttracker.model.Location;
+import com.planttracker.DbUtil;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class LocationDao {
-    private final String url, user, pass;
 
-    public LocationDao(String url, String user, String pass) {
-        this.url = url;
-        this.user = user;
-        this.pass = pass;
-    }
+    public LocationDao() { }
 
+    /**
+     * Insert a Location row for a plant.
+     * Columns: Plant_ID (int), location_name (varchar), LightLevel (varchar)
+     */
     public int insert(Location loc) throws SQLException {
         String sql = "INSERT INTO Location (Plant_ID, location_name, LightLevel) VALUES (?, ?, ?)";
-        try (Connection c = DbUtil.getConnection(url, user, pass);
-                PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = DbUtil.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
             ps.setInt(1, loc.getPlantId());
             ps.setString(2, loc.getLocationName());
             ps.setString(3, loc.getLightLevel());
@@ -27,38 +27,14 @@ public class LocationDao {
         }
     }
 
-    public Location find(int plantId, String locationName) throws SQLException {
-        String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ? AND location_name = ?";
-        try (Connection c = DbUtil.getConnection(url, user, pass);
-                PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, plantId);
-            ps.setString(2, locationName);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next())
-                    return map(rs);
-                return null;
-            }
-        }
-    }
-
-    public List<Location> findForPlant(int plantId) throws SQLException {
-        String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ?";
-        List<Location> out = new ArrayList<>();
-        try (Connection c = DbUtil.getConnection(url, user, pass);
-                PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, plantId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next())
-                    out.add(map(rs));
-            }
-        }
-        return out;
-    }
-
-    public int update(Location loc) throws SQLException {
+    /**
+     * Update the Location row identified by Plant_ID and location_name.
+     * If you model only one location per plant, consider using WHERE Plant_ID = ? instead.
+     */
+    public int updateByPlantId(Location loc) throws SQLException {
         String sql = "UPDATE Location SET LightLevel = ? WHERE Plant_ID = ? AND location_name = ?";
-        try (Connection c = DbUtil.getConnection(url, user, pass);
-                PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = DbUtil.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, loc.getLightLevel());
             ps.setInt(2, loc.getPlantId());
             ps.setString(3, loc.getLocationName());
@@ -66,33 +42,66 @@ public class LocationDao {
         }
     }
 
-    public int delete(int plantId, String locationName) throws SQLException {
+    public int deleteByPlantIdAndName(int plantId, String locationName) throws SQLException {
         String sql = "DELETE FROM Location WHERE Plant_ID = ? AND location_name = ?";
-        try (Connection c = DbUtil.getConnection(url, user, pass);
-                PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = DbUtil.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, plantId);
             ps.setString(2, locationName);
             return ps.executeUpdate();
         }
     }
 
-    private Location map(ResultSet rs) throws SQLException {
-        Location l = new Location();
-        l.setPlantId(rs.getInt("Plant_ID"));
-        l.setLocationName(rs.getString("location_name"));
-        l.setLightLevel(rs.getString("LightLevel"));
-        return l;
+    public int deleteByPlantId(int plantId) throws SQLException {
+        String sql = "DELETE FROM Location WHERE Plant_ID = ?";
+        try (Connection c = DbUtil.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, plantId);
+            return ps.executeUpdate();
+        }
     }
 
-    public List<Location> findAll() throws SQLException {
-        List<Location> out = new ArrayList<>();
-        String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location";
-        try (Connection c = DbUtil.getConnection(url, user, pass);
-                PreparedStatement ps = c.prepareStatement(sql);
-                ResultSet rs = ps.executeQuery()) {
+    /**
+     * Find a single Location for a plant. If you expect multiple locations for a plant,
+     * use findAllForPlant instead.
+     */
+    public Location findByPlantId(int plantId) throws SQLException {
+        String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ?";
+        try (Connection c = DbUtil.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                out.add(map(rs)); // assumes private Location map(ResultSet) exists
+            ps.setInt(1, plantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Location l = new Location();
+                    l.setPlantId(rs.getInt("Plant_ID"));
+                    l.setLocationName(rs.getString("location_name"));
+                    l.setLightLevel(rs.getString("LightLevel"));
+                    return l;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Return all locations for a plant (useful if a plant may have multiple locations recorded).
+     */
+    public List<Location> findAllForPlant(int plantId) throws SQLException {
+        String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ?";
+        List<Location> out = new ArrayList<>();
+        try (Connection c = DbUtil.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, plantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Location l = new Location();
+                    l.setPlantId(rs.getInt("Plant_ID"));
+                    l.setLocationName(rs.getString("location_name"));
+                    l.setLightLevel(rs.getString("LightLevel"));
+                    out.add(l);
+                }
             }
         }
         return out;
