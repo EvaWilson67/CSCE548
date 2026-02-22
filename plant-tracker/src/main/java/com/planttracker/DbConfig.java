@@ -14,6 +14,6 @@ public class DbConfig {
     }
 
     public static String getPassword() {
-        return System.getenv().getOrDefault("PLANTDB_PASS", "Kq37wCXH");
+        return System.getenv().getOrDefault("PLANTDB_PASS", "");
     }
 }
