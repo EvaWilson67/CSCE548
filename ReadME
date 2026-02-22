@@ -1,12 +1,124 @@
-Switch to plant-tracker folder
+# Hosting Overview
 
-Add password for the database in the console app
+Platform: Render (Cloud PaaS)
 
-# Compile EVERYTHING at once
-Remove-Item -Recurse -Force .\out -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path .\out | Out-Null
+Service:
+  - Spring Boot REST API
+  - Deployed via Docker container
+  - Public endpoint: https://csce548.onrender.com
 
-$srcFiles = Get-ChildItem -Recurse -Filter *.java src | ForEach-Object { $_.FullName }
-javac -d out -cp "lib/*" $srcFiles
+Database:
+  - PostgreSQL (Render Managed Database)
+  - Accessed via JDBC
+  - Environment variables used for credentials
 
-java -cp "out;lib/*" com.planttracker.app.ConsoleApp
+Testing:
+  - ConsoleApp demonstrates full CRUD lifecycle.
+
+I will switch hosts in the future. I decided to use Render because they had a postgres host but it will be deleted in a month...
+
+# How to Run the Plant Tracker Service
+
+====================================
+1. Running Locally (Development)
+====================================
+
+Prerequisites:
+- Java 17+
+- Maven
+- PostgreSQL installed locally
+
+Step 1: Create a local PostgreSQL database
+
+Open SQL Shell (psql):
+
+CREATE DATABASE plantdb;
+
+Connect to it:
+
+\c plantdb
+
+Run the table creation script:
+
+\i db_creation_postgres.sql
+
+
+Step 2: Set Environment Variables (optional)
+
+If not set, default values will be used.
+
+Windows PowerShell:
+setx PLANTDB_URL "jdbc:postgresql://localhost:5432/plantdb"
+setx PLANTDB_USER "postgres"
+setx PLANTDB_PASS "yourpassword"
+
+Restart terminal after setting variables.
+
+
+Step 3: Start Spring Boot Application
+
+From project root:
+
+mvn clean package
+mvn spring-boot:run
+
+Service runs at:
+http://localhost:8080
+
+Test endpoint:
+http://localhost:8080/api/plants
+
+
+====================================
+2. Running in the Cloud (Render)
+====================================
+
+The application is deployed on Render.
+
+Public URL:
+https://csce548.onrender.com
+
+Deployment steps:
+
+1. Push code to GitHub.
+2. Create Web Service on Render (Docker).
+3. Create PostgreSQL database on Render.
+4. Configure environment variables:
+   - PLANTDB_URL
+   - PLANTDB_USER
+   - PLANTDB_PASS
+5. Deploy.
+6. Create tables using db_creation_postgres.sql.
+
+
+====================================
+3. Running the Console Test Client
+====================================
+
+The console application tests full CRUD functionality.
+
+It performs:
+- Create plant
+- Read plant
+- Update plant
+- Delete plant
+
+Run using Maven:
+
+mvn org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.mainClass="com.planttracker.console.ConsoleApp"
+
+Or if exec plugin is configured:
+
+mvn compile exec:java
+
+
+The console client connects to:
+https://csce548.onrender.com
+
+To change the URL:
+
+Windows:
+setx PLANT_SERVICE_URL "http://localhost:8080"
+
+Mac/Linux:
+export PLANT_SERVICE_URL=http://localhost:8080
