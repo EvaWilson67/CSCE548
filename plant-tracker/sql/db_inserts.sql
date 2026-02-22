@@ -1,5 +1,5 @@
 
-USE PlantDB;
+USE plantdb;
 
 -- --- PLANT rows with explicit Plant_ID (1..50) ---
 INSERT INTO Plant (Plant_ID, Name, Type, Height, DateAcquired, location_name) VALUES
