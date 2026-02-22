@@ -4,7 +4,25 @@ package com.planttracker;
 
 //postgres
 
-
+/**
+ * ========================================
+ * DATABASE CONFIGURATION (CLOUD DEPLOYMENT)
+ * ========================================
+ *
+ * This class retrieves database configuration from environment variables.
+ *
+ * When deployed on Render:
+ *   - PLANTDB_URL is set to:
+ *       jdbc:postgresql://<render-host>:5432/<database>
+ *   - PLANTDB_USER is set to the Render database username
+ *   - PLANTDB_PASS is set to the Render database password
+ *
+ * This allows the application to connect securely to the hosted
+ * PostgreSQL database without hardcoding credentials.
+ *
+ * For local development:
+ *   If environment variables are not set, fallback values are used.
+ */
 
 public class DbConfig {
 

@@ -1,3 +1,22 @@
+# ======================================================
+# Docker Configuration for Render Deployment
+# ======================================================
+#
+# This Dockerfile builds and runs the Spring Boot service
+# on the Render cloud platform.
+#
+# Build Stage:
+#   - Uses Maven to compile and package the application.
+#
+# Runtime Stage:
+#   - Uses lightweight JRE image.
+#   - Executes the Spring Boot jar.
+#
+# The application reads database credentials from
+# environment variables configured in the Render dashboard.
+#
+# Render automatically builds this container during deployment.
+
 # Build stage
 FROM maven:3.8.8-eclipse-temurin-17 AS builder
 WORKDIR /build

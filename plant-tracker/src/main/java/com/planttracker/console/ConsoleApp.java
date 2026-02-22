@@ -16,6 +16,30 @@ import java.time.LocalDate;
  * https://csce548.onrender.com)
  * - Run with: mvn clean compile exec:java
  */
+
+/**
+ * ========================================
+ * CONSOLE TEST CLIENT
+ * ========================================
+ *
+ * This console-based application is used to test the deployed REST service.
+ *
+ * It performs the following sequence:
+ *   1. CREATE a new Plant (POST)
+ *   2. READ the created Plant (GET)
+ *   3. UPDATE the Plant (PUT)
+ *   4. DELETE the Plant (DELETE)
+ *   5. VERIFY deletion (GET)
+ *
+ * The service is hosted on Render:
+ *   https://csce548.onrender.com
+ *
+ * The console client communicates via HTTP using Java HttpClient.
+ *
+ * This verifies full end-to-end functionality of:
+ *   Console → REST API → Business Layer → DAO Layer → PostgreSQL DB
+ */
+
 public class ConsoleApp {
 
     // change this to your Render URL when testing in the cloud (or set
