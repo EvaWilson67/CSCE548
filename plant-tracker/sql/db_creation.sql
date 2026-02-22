@@ -1,18 +1,18 @@
-CREATE DATABASE PlantDB;
+-- Create tables for Plant Tracker (PostgreSQL)
 
-USE PlantDB;
+-- NOTE: Do NOT run CREATE DATABASE here on Render-managed DB.
+-- Use the database name Render supplies, or create the DB separately if you manage your own PG server.
 
-CREATE TABLE Plant (
-  Plant_ID      INT NOT NULL AUTO_INCREMENT,
-  Name          VARCHAR(100) NOT NULL,   
-  Type          VARCHAR(100) NOT NULL,   
+CREATE TABLE IF NOT EXISTS Plant (
+  Plant_ID      SERIAL PRIMARY KEY,
+  Name          VARCHAR(100) NOT NULL,
+  Type          VARCHAR(100) NOT NULL,
   Height        DECIMAL(6,2),
   DateAcquired  DATE,
-  location_name VARCHAR(100),
-  PRIMARY KEY (Plant_ID)
+  location_name VARCHAR(100)
 );
 
-CREATE TABLE Care (
+CREATE TABLE IF NOT EXISTS Care (
   Plant_ID       INT NOT NULL,
   LastSoilChange DATE,
   LastWatering   DATE,
@@ -24,7 +24,7 @@ CREATE TABLE Care (
     ON UPDATE CASCADE
 );
 
-CREATE TABLE Information (
+CREATE TABLE IF NOT EXISTS Information (
   Plant_ID            INT NOT NULL,
   FromAnotherPlant    BOOLEAN DEFAULT FALSE,
   SoilType            VARCHAR(100),
@@ -38,7 +38,7 @@ CREATE TABLE Information (
     ON UPDATE CASCADE
 );
 
-CREATE TABLE Location (
+CREATE TABLE IF NOT EXISTS Location (
   Plant_ID      INT NOT NULL,
   location_name VARCHAR(100) NOT NULL,
   LightLevel    VARCHAR(50),
