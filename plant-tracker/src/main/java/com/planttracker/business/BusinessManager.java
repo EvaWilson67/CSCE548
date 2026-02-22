@@ -6,9 +6,6 @@ import com.planttracker.model.*;
 import java.sql.SQLException;
 import java.util.List;
 
-import java.sql.SQLException;
-import java.util.List;
-
 public class BusinessManager {
 
     private final PlantDao plantDao;
@@ -27,11 +24,19 @@ public class BusinessManager {
     // ============ PLANT ===================
     // ======================================
 
-    public void savePlant(Plant plant) throws SQLException {
-        if (plant.getPlantId() == 0) {
-            plantDao.insert(plant);
+    /**
+     * Save a plant: insert (if no id) or update (if id present).
+     * Returns the saved Plant (with id populated after insert).
+     */
+    public Plant savePlant(Plant plant) throws SQLException {
+        Integer pid = plant.getPlantId();
+        if (pid == null || pid == 0) {
+            int newId = plantDao.insert(plant);
+            plant.setPlantId(newId);
+            return plant;
         } else {
             plantDao.update(plant);
+            return plant;
         }
     }
 
@@ -51,12 +56,18 @@ public class BusinessManager {
     // ============ CARE ====================
     // ======================================
 
-    public void saveCare(Care care) throws SQLException {
+    /**
+     * Save or update care record. Returns the saved Care object.
+     */
+    public Care saveCare(Care care) throws SQLException {
         Care existing = careDao.findByPlantId(care.getPlantId());
         if (existing == null) {
             careDao.insert(care);
+            // optionally re-query to return full persisted object
+            return careDao.findByPlantId(care.getPlantId());
         } else {
-            careDao.updateByPlantId(care);  
+            careDao.updateByPlantId(care);
+            return careDao.findByPlantId(care.getPlantId());
         }
     }
 
@@ -65,19 +76,24 @@ public class BusinessManager {
     }
 
     public void deleteCare(int plantId) throws SQLException {
-        careDao.deleteByPlantId(plantId);   
+        careDao.deleteByPlantId(plantId);
     }
 
     // ======================================
     // ============ INFORMATION =============
     // ======================================
 
-    public void saveInformation(Information info) throws SQLException {
+    /**
+     * Save or update information record. Returns the saved Information object.
+     */
+    public Information saveInformation(Information info) throws SQLException {
         Information existing = informationDao.findByPlantId(info.getPlantId());
         if (existing == null) {
             informationDao.insert(info);
+            return informationDao.findByPlantId(info.getPlantId());
         } else {
-            informationDao.updateByPlantId(info);  
+            informationDao.updateByPlantId(info);
+            return informationDao.findByPlantId(info.getPlantId());
         }
     }
 
@@ -86,19 +102,24 @@ public class BusinessManager {
     }
 
     public void deleteInformation(int plantId) throws SQLException {
-        informationDao.deleteByPlantId(plantId);  
+        informationDao.deleteByPlantId(plantId);
     }
 
     // ======================================
     // ============ LOCATION =================
     // ======================================
 
-    public void saveLocation(Location location) throws SQLException {
+    /**
+     * Save or update location record. Returns the saved Location object.
+     */
+    public Location saveLocation(Location location) throws SQLException {
         Location existing = locationDao.findByPlantId(location.getPlantId());
         if (existing == null) {
             locationDao.insert(location);
+            return locationDao.findByPlantId(location.getPlantId());
         } else {
             locationDao.updateByPlantId(location);
+            return locationDao.findByPlantId(location.getPlantId());
         }
     }
 
