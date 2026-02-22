@@ -9,7 +9,7 @@ RUN mvn -q -DskipTests clean package
 # Run stage
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-# Copy the JAR built by the builder stage; adjust filename if needed
-COPY --from=builder /build/target/planttracker-service-0.0.1-SNAPSHOT.jar /app/app.jar
+# copy built jar (use wildcard if your jar name may vary)
+COPY --from=builder /build/target/*.jar /app/app.jar
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","/app/app.jar"]
