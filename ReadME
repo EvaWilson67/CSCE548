@@ -5,7 +5,7 @@ Platform: Render (Cloud PaaS)
 Service:
   - Spring Boot REST API
   - Deployed via Docker container
-  - Public endpoint: https://csce548.onrender.com
+  - Public endpoint: https://csce548.onrender.com/api/plants
 
 Database:
   - PostgreSQL (Render Managed Database)
