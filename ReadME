@@ -191,13 +191,12 @@ After this, the REST endpoints are fully functional.
 3. Running the Console Test Client
 ====================================
 
-The console application tests full CRUD functionality.
+The console application tests full CRUD functionality for the business, DAO, and service
 
-It performs:
-- Create plant
-- Read plant
-- Update plant
-- Delete plant
+When running the service, adjust the defaultLayer to be empty (will work right away, no need to adjust passwords, but may take like 1 minute to load render)
+
+For using the business or DAO, you would need to switch the DbConfig to local host to imput your own password
+In addition, you will need to change the defaultLayer to be "bus" or "data" depending on what you want to test
 
 Run using Maven:
 mvn compile exec:java
