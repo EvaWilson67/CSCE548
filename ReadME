@@ -5,7 +5,7 @@ Platform: Render (Cloud PaaS)
 Service:
   - Spring Boot REST API
   - Deployed via Docker container
-  - Public endpoint: https://csce548.onrender.com
+  - Public endpoint: https://csce548.onrender.com/api/plants
 
 Database:
   - PostgreSQL (Render Managed Database)
@@ -42,20 +42,7 @@ Run the table creation script:
 
 \i db_creation_postgres.sql
 
-
-Step 2: Set Environment Variables (optional)
-
-If not set, default values will be used.
-
-Windows PowerShell:
-setx PLANTDB_URL "jdbc:postgresql://localhost:5432/plantdb"
-setx PLANTDB_USER "postgres"
-setx PLANTDB_PASS "yourpassword"
-
-Restart terminal after setting variables.
-
-
-Step 3: Start Spring Boot Application
+Step 2: Start Spring Boot Application
 
 From project root:
 
@@ -73,22 +60,131 @@ http://localhost:8080/api/plants
 2. Running in the Cloud (Render)
 ====================================
 
-The application is deployed on Render.
+The application is deployed on Render using a Docker-based Web Service
+and a managed PostgreSQL database.
 
-Public URL:
+Public Service URL:
 https://csce548.onrender.com
 
-Deployment steps:
 
-1. Push code to GitHub.
-2. Create Web Service on Render (Docker).
-3. Create PostgreSQL database on Render.
-4. Configure environment variables:
-   - PLANTDB_URL
-   - PLANTDB_USER
-   - PLANTDB_PASS
-5. Deploy.
-6. Create tables using db_creation_postgres.sql.
+------------------------------------
+Deployment Steps
+------------------------------------
+
+1. Push the project to GitHub.
+
+2. Create a new Web Service on Render:
+   - Environment: Docker
+   - Root Directory: (project folder)
+   - Dockerfile Path: Dockerfile
+
+3. Create a PostgreSQL database on Render:
+   - Click "New" → PostgreSQL
+   - Choose region
+   - Wait for provisioning
+   - Copy:
+       Host
+       Port (5432)
+       Database name
+       Username
+       Password
+
+4. Configure environment variables in the Web Service:
+
+   PLANTDB_URL = jdbc:postgresql://<HOST>:5432/<DATABASE>
+   PLANTDB_USER = <USERNAME>
+   PLANTDB_PASS = <PASSWORD>
+
+5. Redeploy the service.
+
+
+------------------------------------
+Creating Tables Using SQL Shell
+------------------------------------
+
+After the database is created on Render, tables must be created manually.
+
+Step 1: Open SQL Shell (psql) locally.
+
+Step 2: Connect to the Render PostgreSQL database.
+
+When prompted in SQL Shell:
+
+Server:
+<Render Host>
+
+Database:
+<Render Database Name>
+
+Port:
+5432
+
+Username:
+<Render Username>
+
+Password:
+<Render Password>
+
+After successful connection, you should see:
+
+planttracker_db=>
+
+Step 3: Run the table creation SQL.
+
+Paste the following:
+
+CREATE TABLE IF NOT EXISTS Plant (
+  Plant_ID SERIAL PRIMARY KEY,
+  Name VARCHAR(100) NOT NULL,
+  Type VARCHAR(100) NOT NULL,
+  Height DECIMAL(6,2),
+  DateAcquired DATE,
+  location_name VARCHAR(100)
+);
+
+CREATE TABLE IF NOT EXISTS Care (
+  Plant_ID INT NOT NULL,
+  LastSoilChange DATE,
+  LastWatering DATE,
+  PRIMARY KEY (Plant_ID),
+  FOREIGN KEY (Plant_ID)
+    REFERENCES Plant(Plant_ID)
+    ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS Information (
+  Plant_ID INT NOT NULL,
+  FromAnotherPlant BOOLEAN DEFAULT FALSE,
+  SoilType VARCHAR(100),
+  PotSize VARCHAR(50),
+  WaterGlobeRequired BOOLEAN DEFAULT FALSE,
+  PRIMARY KEY (Plant_ID),
+  FOREIGN KEY (Plant_ID)
+    REFERENCES Plant(Plant_ID)
+    ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS Location (
+  Plant_ID INT NOT NULL,
+  location_name VARCHAR(100) NOT NULL,
+  LightLevel VARCHAR(50),
+  PRIMARY KEY (Plant_ID, location_name),
+  FOREIGN KEY (Plant_ID)
+    REFERENCES Plant(Plant_ID)
+    ON DELETE CASCADE
+);
+
+Step 4: Verify tables were created:
+
+\dt
+
+You should see:
+  plant
+  care
+  information
+  location
+
+After this, the REST endpoints are fully functional.
 
 
 ====================================
@@ -104,11 +200,6 @@ It performs:
 - Delete plant
 
 Run using Maven:
-
-mvn org.codehaus.mojo:exec-maven-plugin:3.1.0:exec -Dexec.mainClass="com.planttracker.console.ConsoleApp"
-
-Or if exec plugin is configured:
-
 mvn compile exec:java
 
 
