@@ -1,28 +1,26 @@
 package com.planttracker;
 
+
+/* 
+If you are doing this local (business and data if you don't have access to render password):
+
+PLANTDB_URL: jdbc:postgresql://localhost:5432/plantdb
+PLANTDB_USER: postgres
+*/ 
+
+/*
+If you are doing this via render (serivce):
+
+PLANTDB_URL: jdbc:postgresql://dpg-d6d72sp4tr6s73cklc7g-a.ohio-postgres.render.com:5432/planttracker_db
+PLANTDB_USER: planttracker_db_user
+*/ 
+
+
 //jdbc:postgresql://localhost:5432/plantdb
 
 //postgres
 
-/**
- * ========================================
- * DATABASE CONFIGURATION (CLOUD DEPLOYMENT)
- * ========================================
- *
- * This class retrieves database configuration from environment variables.
- *
- * When deployed on Render:
- *   - PLANTDB_URL is set to:
- *       jdbc:postgresql://<render-host>:5432/<database>
- *   - PLANTDB_USER is set to the Render database username
- *   - PLANTDB_PASS is set to the Render database password
- *
- * This allows the application to connect securely to the hosted
- * PostgreSQL database without hardcoding credentials.
- *
- * For local development:
- *   If environment variables are not set, fallback values are used.
- */
+//To run the Business layer and the DAO, you need to change the password... (I am not putting the password for the DB here...)
 
 public class DbConfig {
 

@@ -1,61 +1,64 @@
+-- If using psql: switch to DB (psql only). If you already connected, skip this.
+\c plantdb
 
-USE plantdb;
+-- 1) Wipe existing data and reset sequences (will remove rows from Plant and all FK children)
+TRUNCATE TABLE plant RESTART IDENTITY CASCADE;
 
--- --- PLANT rows with explicit Plant_ID (1..50) ---
-INSERT INTO Plant (Plant_ID, Name, Type, Height, DateAcquired, location_name) VALUES
-(1, 'Oliver', 'Snake Plant', 45.0, '2023-01-10', 'Living Room'),
-(2, 'Luna', 'Pothos', 30.5, '2023-01-15', 'Kitchen'),
-(3, 'Charlie', 'Spider Plant', 28.0, '2023-02-01', 'Bathroom'),
-(4, 'Bella', 'Peace Lily', 40.0, '2023-02-10', 'Bedroom'),
-(5, 'Max', 'Aloe Vera', 22.0, '2023-02-18', 'Window Sill'),
-(6, 'Daisy', 'Fiddle Leaf Fig', 120.0, '2023-03-01', 'Living Room'),
-(7, 'Milo', 'ZZ Plant', 55.0, '2023-03-05', 'Office'),
-(8, 'Ruby', 'Rubber Plant', 90.0, '2023-03-12', 'Hallway'),
-(9, 'Oscar', 'Monstera', 110.0, '2023-03-20', 'Living Room'),
-(10, 'Lucy', 'Jade Plant', 35.0, '2023-03-25', 'Kitchen'),
-(11, 'Leo', 'Cactus', 18.0, '2023-04-01', 'Window Sill'),
-(12, 'Molly', 'Fern', 42.0, '2023-04-05', 'Bathroom'),
-(13, 'Rocky', 'Succulent', 12.0, '2023-04-10', 'Desk'),
-(14, 'Willow', 'Calathea', 50.0, '2023-04-15', 'Bedroom'),
-(15, 'Toby', 'Bamboo Palm', 130.0, '2023-04-20', 'Living Room'),
-(16, 'Zoe', 'Orchid', 38.0, '2023-04-25', 'Dining Room'),
-(17, 'Buddy', 'Philodendron', 60.0, '2023-05-01', 'Office'),
-(18, 'Cleo', 'Chinese Evergreen', 55.0, '2023-05-05', 'Hallway'),
-(19, 'Finn', 'Dracaena', 95.0, '2023-05-10', 'Living Room'),
-(20, 'Nala', 'Croton', 65.0, '2023-05-15', 'Kitchen'),
-(21, 'Simba', 'Palm', 150.0, '2023-05-20', 'Living Room'),
-(22, 'Penny', 'Begonia', 30.0, '2023-05-25', 'Bedroom'),
-(23, 'Henry', 'Yucca', 140.0, '2023-06-01', 'Hallway'),
-(24, 'Rosie', 'African Violet', 20.0, '2023-06-05', 'Window Sill'),
-(25, 'Jack', 'Dieffenbachia', 85.0, '2023-06-10', 'Office'),
-(26, 'Ellie', 'Prayer Plant', 45.0, '2023-06-15', 'Bedroom'),
-(27, 'Louie', 'Parlor Palm', 70.0, '2023-06-20', 'Living Room'),
-(28, 'Hazel', 'Anthurium', 48.0, '2023-06-25', 'Dining Room'),
-(29, 'Archie', 'Schefflera', 100.0, '2023-07-01', 'Office'),
-(30, 'Millie', 'Peperomia', 25.0, '2023-07-05', 'Desk'),
-(31, 'Otis', 'Money Tree', 110.0, '2023-07-10', 'Living Room'),
-(32, 'Ivy', 'English Ivy', 35.0, '2023-07-15', 'Bathroom'),
-(33, 'George', 'Boston Fern', 50.0, '2023-07-20', 'Bathroom'),
-(34, 'Lily', 'Snake Plant', 48.0, '2023-07-25', 'Bedroom'),
-(35, 'Bear', 'Aloe Vera', 24.0, '2023-08-01', 'Kitchen'),
-(36, 'Chloe', 'Pilea', 28.0, '2023-08-05', 'Desk'),
-(37, 'Sam', 'Monstera', 105.0, '2023-08-10', 'Living Room'),
-(38, 'Maggie', 'Rubber Plant', 88.0, '2023-08-15', 'Hallway'),
-(39, 'Dexter', 'ZZ Plant', 60.0, '2023-08-20', 'Office'),
-(40, 'Sophie', 'Peace Lily', 42.0, '2023-08-25', 'Bedroom'),
-(41, 'Bruno', 'Cactus', 20.0, '2023-09-01', 'Window Sill'),
-(42, 'Annie', 'Succulent', 14.0, '2023-09-05', 'Desk'),
-(43, 'Theo', 'Dracaena', 92.0, '2023-09-10', 'Living Room'),
-(44, 'Mia', 'Orchid', 36.0, '2023-09-15', 'Dining Room'),
-(45, 'Rex', 'Jade Plant', 40.0, '2023-09-20', 'Kitchen'),
-(46, 'Lola', 'Philodendron', 58.0, '2023-09-25', 'Office'),
-(47, 'Finn2', 'Peperomia', 26.0, '2023-10-01', 'Desk'),
-(48, 'Ginger', 'Calathea', 52.0, '2023-10-05', 'Bedroom'),
-(49, 'Poppy', 'Succulent', 15.0, '2023-10-10', 'Desk'),
-(50, 'Maple', 'Monstera', 108.0, '2023-10-15', 'Living Room');
+-- 2) Re-insert plants WITHOUT explicit Plant_IDs (Postgres will assign ids 1..50)
+INSERT INTO plant (name, type, height, dateacquired, location_name) VALUES
+('Oliver', 'Snake Plant', 45.0, '2023-01-10', 'Living Room'),
+('Luna', 'Pothos', 30.5, '2023-01-15', 'Kitchen'),
+('Charlie', 'Spider Plant', 28.0, '2023-02-01', 'Bathroom'),
+('Bella', 'Peace Lily', 40.0, '2023-02-10', 'Bedroom'),
+('Max', 'Aloe Vera', 22.0, '2023-02-18', 'Window Sill'),
+('Daisy', 'Fiddle Leaf Fig', 120.0, '2023-03-01', 'Living Room'),
+('Milo', 'ZZ Plant', 55.0, '2023-03-05', 'Office'),
+('Ruby', 'Rubber Plant', 90.0, '2023-03-12', 'Hallway'),
+('Oscar', 'Monstera', 110.0, '2023-03-20', 'Living Room'),
+('Lucy', 'Jade Plant', 35.0, '2023-03-25', 'Kitchen'),
+('Leo', 'Cactus', 18.0, '2023-04-01', 'Window Sill'),
+('Molly', 'Fern', 42.0, '2023-04-05', 'Bathroom'),
+('Rocky', 'Succulent', 12.0, '2023-04-10', 'Desk'),
+('Willow', 'Calathea', 50.0, '2023-04-15', 'Bedroom'),
+('Toby', 'Bamboo Palm', 130.0, '2023-04-20', 'Living Room'),
+('Zoe', 'Orchid', 38.0, '2023-04-25', 'Dining Room'),
+('Buddy', 'Philodendron', 60.0, '2023-05-01', 'Office'),
+('Cleo', 'Chinese Evergreen', 55.0, '2023-05-05', 'Hallway'),
+('Finn', 'Dracaena', 95.0, '2023-05-10', 'Living Room'),
+('Nala', 'Croton', 65.0, '2023-05-15', 'Kitchen'),
+('Simba', 'Palm', 150.0, '2023-05-20', 'Living Room'),
+('Penny', 'Begonia', 30.0, '2023-05-25', 'Bedroom'),
+('Henry', 'Yucca', 140.0, '2023-06-01', 'Hallway'),
+('Rosie', 'African Violet', 20.0, '2023-06-05', 'Window Sill'),
+('Jack', 'Dieffenbachia', 85.0, '2023-06-10', 'Office'),
+('Ellie', 'Prayer Plant', 45.0, '2023-06-15', 'Bedroom'),
+('Louie', 'Parlor Palm', 70.0, '2023-06-20', 'Living Room'),
+('Hazel', 'Anthurium', 48.0, '2023-06-25', 'Dining Room'),
+('Archie', 'Schefflera', 100.0, '2023-07-01', 'Office'),
+('Millie', 'Peperomia', 25.0, '2023-07-05', 'Desk'),
+('Otis', 'Money Tree', 110.0, '2023-07-10', 'Living Room'),
+('Ivy', 'English Ivy', 35.0, '2023-07-15', 'Bathroom'),
+('George', 'Boston Fern', 50.0, '2023-07-20', 'Bathroom'),
+('Lily', 'Snake Plant', 48.0, '2023-07-25', 'Bedroom'),
+('Bear', 'Aloe Vera', 24.0, '2023-08-01', 'Kitchen'),
+('Chloe', 'Pilea', 28.0, '2023-08-05', 'Desk'),
+('Sam', 'Monstera', 105.0, '2023-08-10', 'Living Room'),
+('Maggie', 'Rubber Plant', 88.0, '2023-08-15', 'Hallway'),
+('Dexter', 'ZZ Plant', 60.0, '2023-08-20', 'Office'),
+('Sophie', 'Peace Lily', 42.0, '2023-08-25', 'Bedroom'),
+('Bruno', 'Cactus', 20.0, '2023-09-01', 'Window Sill'),
+('Annie', 'Succulent', 14.0, '2023-09-05', 'Desk'),
+('Theo', 'Dracaena', 92.0, '2023-09-10', 'Living Room'),
+('Mia', 'Orchid', 36.0, '2023-09-15', 'Dining Room'),
+('Rex', 'Jade Plant', 40.0, '2023-09-20', 'Kitchen'),
+('Lola', 'Philodendron', 58.0, '2023-09-25', 'Office'),
+('Finn2', 'Peperomia', 26.0, '2023-10-01', 'Desk'),
+('Ginger', 'Calathea', 52.0, '2023-10-05', 'Bedroom'),
+('Poppy', 'Succulent', 15.0, '2023-10-10', 'Desk'),
+('Maple', 'Monstera', 108.0, '2023-10-15', 'Living Room');
 
--- --- CARE rows for each Plant_ID 1..50 (one row each) ---
-INSERT INTO Care (Plant_ID, LastSoilChange, LastWatering) VALUES
+-- 3) Insert Care rows referencing plant IDs 1..50 (these IDs will match because we reset the sequence)
+INSERT INTO care (plant_id, lastsoilchange, lastwatering) VALUES
 (1, '2023-09-01','2026-01-21'),
 (2, '2023-09-02','2026-01-21'),
 (3, '2023-09-03','2026-01-21'),
@@ -107,8 +110,8 @@ INSERT INTO Care (Plant_ID, LastSoilChange, LastWatering) VALUES
 (49, '2023-10-19','2026-01-21'),
 (50, '2023-10-20','2026-01-21');
 
--- --- INFORMATION rows for each Plant_ID 1..50 ---
-INSERT INTO Information (Plant_ID, FromAnotherPlant, SoilType, PotSize, WaterGlobeRequired) VALUES
+-- 4) Insert Information rows
+INSERT INTO information (plant_id, fromanotherplant, soiltype, potsize, watergloberequired) VALUES
 (1, FALSE, 'All-purpose potting soil', '8 inch', FALSE),
 (2, FALSE, 'All-purpose potting soil', '6 inch', FALSE),
 (3, TRUE,  'Peat-based mix', '6 inch', FALSE),
@@ -160,8 +163,8 @@ INSERT INTO Information (Plant_ID, FromAnotherPlant, SoilType, PotSize, WaterGlo
 (49, TRUE, 'Succulent mix', '3 inch', FALSE),
 (50, FALSE,'Aroid mix', '12 inch', TRUE);
 
--- --- LOCATPlant_IDION rows for each Plant_ID 1..50 (using the Plant.location_name value) ---
-INSERT INTO Location (Plant_ID, location_name, LightLevel) VALUES
+-- 5) Insert Location rows
+INSERT INTO location (plant_id, location_name, lightlevel) VALUES
 (1, 'Living Room', 'Bright'),
 (2, 'Kitchen', 'Medium'),
 (3, 'Bathroom', 'Low'),

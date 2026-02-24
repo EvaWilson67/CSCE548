@@ -1,4 +1,4 @@
-package com.planttracker.app;
+package com.planttracker.ProjectPRT1Test;
 
 import com.planttracker.dao.CareDao;
 import com.planttracker.dao.InformationDao;

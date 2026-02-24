@@ -1,5 +1,4 @@
 com\planttracker\dao\InformationDao.class
-com\planttracker\app\ConsoleApp.class
 com\planttracker\dao\CareDao.class
 com\planttracker\service\BusinessConfig.class
 com\planttracker\console\ConsoleApp$Plant.class

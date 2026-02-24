@@ -3,6 +3,8 @@
 -- NOTE: Do NOT run CREATE DATABASE here on Render-managed DB.
 -- Use the database name Render supplies, or create the DB separately if you manage your own PG server.
 
+--db title is plantdb
+
 CREATE TABLE IF NOT EXISTS Plant (
   Plant_ID      SERIAL PRIMARY KEY,
   Name          VARCHAR(100) NOT NULL,
@@ -49,3 +51,6 @@ CREATE TABLE IF NOT EXISTS Location (
     ON DELETE CASCADE
     ON UPDATE CASCADE
 );
+
+--ensure the sequence is set to MAX(plant_id) (should be automatic, but safe)
+SELECT setval(pg_get_serial_sequence('plant','plant_id'), (SELECT COALESCE(MAX(plant_id),0) FROM plant));
