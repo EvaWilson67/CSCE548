@@ -3,7 +3,7 @@
 -- NOTE: Do NOT run CREATE DATABASE here on Render-managed DB.
 -- Use the database name Render supplies, or create the DB separately if you manage your own PG server.
 
---db title is plantdb
+psql -U postgres -c "CREATE DATABASE plantdb;"
 
 CREATE TABLE IF NOT EXISTS Plant (
   Plant_ID      SERIAL PRIMARY KEY,
