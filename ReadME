@@ -49,9 +49,6 @@ From project root:
 mvn clean package
 mvn spring-boot:run
 
-Service runs at:
-http://localhost:8080
-
 Test endpoint:
 http://localhost:8080/api/plants
 
