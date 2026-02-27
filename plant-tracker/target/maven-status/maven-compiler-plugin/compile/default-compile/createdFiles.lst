@@ -9,6 +9,7 @@ com\planttracker\model\Information.class
 com\planttracker\DbUtil.class
 com\planttracker\data\DataProvider.class
 com\planttracker\service\Application.class
+com\planttracker\ProjectPRT1Test\ConsoleApp.class
 com\planttracker\data\DataProvider$CredentialAwareDaoWrapper.class
 com\planttracker\DbConfig.class
 com\planttracker\dao\PlantDao.class
