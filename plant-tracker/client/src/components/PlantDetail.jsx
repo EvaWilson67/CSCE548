@@ -1,200 +1,214 @@
-import React, { useEffect, useState } from "react";
-import { getPlant, getCare, getInformation, getLocation } from "../ApiClient";
+// src/components/PlantDetail.jsx
+import React, { useState } from "react";
+import { getCare, getInformation, getLocation } from "../ApiClient";
 import "../App.css";
 
-function friendlyDate(d) {
-  if (!d) return "—";
-  try {
-    const dt = new Date(d);
-    if (isNaN(dt)) return d;
-    return dt.toLocaleDateString();
-  } catch {
-    return d;
+/**
+ * PlantDetail component — shows plant summary and three subtable titles.
+ * Clicking a section opens a focused stylized modal. The focused modal
+ * header includes "ModalType — Plant {id}" while the body hides any ID
+ * fields (plantId, id, plant_id, etc.) at any nesting level.
+ */
+export default function PlantDetail({ plant, onBack }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState("care");
+  const [modalData, setModalData] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
+
+  if (!plant) {
+    return <div className="card">No plant selected.</div>;
   }
-}
 
-export default function PlantDetail({ plantId, onBack }) {
-  const [plant, setPlant] = useState(null);
-  const [care, setCare] = useState(null);
-  const [info, setInfo] = useState(null);
-  const [loc, setLoc] = useState(null);
-  const [err, setErr] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingCare, setLoadingCare] = useState(false);
-  const [loadingInfo, setLoadingInfo] = useState(false);
-  const [loadingLoc, setLoadingLoc] = useState(false);
+  const plantId = plant.id ?? plant.plantId ?? plant.Plant_ID ?? plant.PlantId ?? plant.plant_id;
 
-  useEffect(() => {
-    if (!plantId) {
-      setPlant(null);
-      setCare(null);
-      setInfo(null);
-      setLoc(null);
+  const openSubtable = async (type) => {
+    const pid = plantId;
+    if (!pid) {
+      setModalError("Missing plant id");
+      setModalOpen(true);
       return;
     }
 
-    let cancelled = false;
-    const fetchPlant = async () => {
-      // clear previous detail sections immediately to avoid stale display
-      setPlant(null);
-      setCare(null);
-      setInfo(null);
-      setLoc(null);
-      setLoading(true);
-      setErr(null);
+    setModalType(type);
+    setModalOpen(true);
+    setModalLoading(true);
+    setModalError(null);
+    setModalData(null);
 
-      try {
-        const p = await getPlant(plantId);
-        if (!cancelled) setPlant(p);
-      } catch (e) {
-        if (!cancelled) setErr(String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
+    try {
+      let res;
+      if (type === "care") res = await getCare(pid);
+      else if (type === "information") res = await getInformation(pid);
+      else if (type === "location") res = await getLocation(pid);
+      else throw new Error("Unknown type: " + type);
+
+      if (Array.isArray(res) && res.length === 1) res = res[0];
+      setModalData(res);
+    } catch (err) {
+      console.error("[PlantDetail] openSubtable error", err);
+      setModalError(String(err));
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalData(null);
+    setModalError(null);
+  };
+
+  // Keys to hide everywhere
+  const forbiddenKeys = new Set([
+    "plantId", "plant_id", "Plant_ID", "PlantId", "plantid",
+    "id", "ID", "Id"
+  ]);
+
+  // Pretty-print keys: camelCase / snake_case -> Title Case
+  const prettyKey = (k) => {
+    if (!k || typeof k !== "string") return String(k);
+    // replace underscores with spaces, insert spaces before caps, then title-case
+    const spaced = k
+      .replace(/_/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim();
+    return spaced.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  };
+
+  // Stylized renderer for key/value UI (handles nested objects/arrays)
+  const renderStylized = (obj, depth = 0) => {
+    // primitives
+    if (obj === null || obj === undefined) {
+      return <div className="small" style={{ color: "var(--muted)" }}>—</div>;
+    }
+    if (typeof obj !== "object") {
+      if (typeof obj === "boolean") {
+        return <span className={`badge-${obj ? "true" : "false"}`}>{String(obj)}</span>;
       }
-    };
+      return <div className="val">{String(obj)}</div>;
+    }
 
-    fetchPlant();
-    return () => { cancelled = true; };
-  }, [plantId]);
+    // arrays
+    if (Array.isArray(obj)) {
+      if (obj.length === 0) return <div className="small" style={{ color: "var(--muted)" }}>(empty)</div>;
+      return (
+        <div className="nested-array" style={{ marginLeft: depth * 8 }}>
+          {obj.map((it, i) => (
+            <div key={i} className="nested-card">
+              <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>#{i + 1}</div>
+              <div>{renderStylized(it, depth + 1)}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
 
-  const fetchCare = async () => {
-    setLoadingCare(true);
-    setCare(null);
-    try {
-      const c = await getCare(plantId);
-      setCare(c);
-    } catch (e) {
-      setErr(String(e));
-    } finally {
-      setLoadingCare(false);
+    // plain object: filter out forbidden keys
+    const entries = Object.entries(obj).filter(([k, v]) => !forbiddenKeys.has(k));
+
+    // if nothing remains (all fields were IDs or filtered) show muted note
+    if (entries.length === 0) {
+      return <div className="small" style={{ color: "var(--muted)" }}>(no visible fields)</div>;
     }
-  };
-  const fetchInfo = async () => {
-    setLoadingInfo(true);
-    setInfo(null);
-    try {
-      const i = await getInformation(plantId);
-      setInfo(i);
-    } catch (e) {
-      setErr(String(e));
-    } finally {
-      setLoadingInfo(false);
-    }
-  };
-  const fetchLoc = async () => {
-    setLoadingLoc(true);
-    setLoc(null);
-    try {
-      const l = await getLocation(plantId);
-      setLoc(l);
-    } catch (e) {
-      setErr(String(e));
-    } finally {
-      setLoadingLoc(false);
-    }
+
+    return (
+      <div className="kv-grid" style={{ marginLeft: depth * 6 }}>
+        {entries.map(([k, v]) => (
+          <div key={k} className="kv-row">
+            <div className="kv-key">{prettyKey(k)}</div>
+            <div className="kv-val">{renderStylized(v, depth + 1)}</div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
-  if (!plantId) return <div className="card small">Select a plant to view details</div>;
+  const makeSectionProps = (type) => ({
+    role: "button",
+    tabIndex: 0,
+    className: "modal-section clickable section-card",
+    onClick: (e) => {
+      e.stopPropagation();
+      openSubtable(type);
+    },
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openSubtable(type);
+      }
+    },
+  });
 
   return (
-    <div className="card detail">
-      <div className="heading">
-        <div>
-          <h3 style={{ margin: 0 }}>Plant Detail</h3>
-          <div className="small" style={{ color: "var(--muted)" }}>ID: {plantId}</div>
+    <>
+      <div className="card">
+        <div className="list-header">
+          <h3 style={{ margin: 0 }}>{plant.name ?? "Unnamed Plant"}</h3>
+          {onBack && <button className="btn ghost" onClick={onBack}>Back</button>}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn ghost" onClick={onBack}>Back</button>
-          <button className="btn" onClick={() => { /* reserved for Edit flow */ }}>Edit</button>
+
+        <div style={{ marginTop: 10 }}>
+          <div className="small"><strong>Type:</strong> {plant.type ?? "—"}</div>
+          <div className="small"><strong>Height:</strong> {plant.height ?? "—"}</div>
+        </div>
+
+        <hr />
+
+        <h4 style={{ marginBottom: 12 }}>Details</h4>
+
+        <div className="subtable-grid">
+          <div {...makeSectionProps("care")}>
+            <h4 className="subtable-title">Care</h4>
+            <div className="small muted">Click to view details</div>
+          </div>
+
+          <div {...makeSectionProps("information")}>
+            <h4 className="subtable-title">Information</h4>
+            <div className="small muted">Click to view details</div>
+          </div>
+
+          <div {...makeSectionProps("location")}>
+            <h4 className="subtable-title">Location</h4>
+            <div className="small muted">Click to view details</div>
+          </div>
         </div>
       </div>
 
-      {err && <div className="error">{err}</div>}
-      {loading && <div className="loading">Loading plant…</div>}
+      {/* Focused modal: header shows "Type — Plant {id}" but body hides ID keys */}
+      {modalOpen && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={closeModal}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ margin: 0 }}>
+                  {modalType.charAt(0).toUpperCase() + modalType.slice(1)}{plantId ? ` — Plant ${plantId}` : ""}
+                </h3>
+                {/* optionally show plant.name as subtitle */}
+                <div className="small" style={{ color: "var(--muted)" }}>{plant.name}</div>
+              </div>
 
-      {plant && (
-        <>
-          <div className="fields grid-2">
-            <div className="field">
-              <label>Name</label>
-              <div className="val">{plant.name ?? "—"}</div>
+              <button className="btn ghost" onClick={closeModal}>Close</button>
             </div>
-            <div className="field">
-              <label>Type</label>
-              <div className="val">{plant.type ?? "—"}</div>
-            </div>
-            <div className="field">
-              <label>Height</label>
-              <div className="val">{plant.height ?? "—"}</div>
-            </div>
-            <div className="field">
-              <label>Date Acquired</label>
-              <div className="val">{friendlyDate(plant.dateAcquired ?? plant.DateAcquired)}</div>
-            </div>
-            <div className="field">
-              <label>Location Name</label>
-              <div className="val">{plant.locationName ?? plant.location_name ?? "—"}</div>
-            </div>
-            <div className="field">
-              <label>Database ID</label>
-              <div className="val">{plant.id ?? plant.plantId ?? plant.Plant_ID}</div>
-            </div>
-          </div>
 
-          <div className="related">
-            <div className="section">
-              <div className="section-header">
-                <h4 style={{ margin: 0 }}>Care</h4>
-                <div>
-                  <button className="btn ghost" onClick={fetchCare}>{loadingCare ? "Loading…" : "Get Care"}</button>
+            <div className="modal-body">
+              {modalLoading && <div className="small">Loading...</div>}
+              {modalError && <div className="small error">{modalError}</div>}
+
+              {!modalLoading && !modalError && modalData && (
+                <div className="info-inner">
+                  {renderStylized(modalData)}
                 </div>
-              </div>
-              <div style={{ marginTop: 8 }}>
-                {loadingCare ? <div className="small">Loading…</div> : care ? (
-                  <div className="info-grid">
-                    <div><strong>Last Soil Change:</strong> {friendlyDate(care.lastSoilChange ?? care.LastSoilChange)}</div>
-                    <div><strong>Last Watering:</strong> {friendlyDate(care.lastWatering ?? care.LastWatering)}</div>
-                  </div>
-                ) : <pre>Not fetched</pre>}
-              </div>
-            </div>
+              )}
 
-            <div className="section">
-              <div className="section-header">
-                <h4 style={{ margin: 0 }}>Information</h4>
-                <div><button className="btn ghost" onClick={fetchInfo}>{loadingInfo ? "Loading…" : "Get Info"}</button></div>
-              </div>
-              <div style={{ marginTop: 8 }}>
-                {loadingInfo ? <div className="small">Loading…</div> : info ? (
-                  <div className="info-grid">
-                    <div><strong>From Another Plant:</strong> {String(info.fromAnotherPlant ?? info.FromAnotherPlant)}</div>
-                    <div><strong>Soil Type:</strong> {info.soilType ?? info.SoilType ?? "—"}</div>
-                    <div><strong>Pot Size:</strong> {info.potSize ?? info.PotSize ?? "—"}</div>
-                    <div><strong>Water Globe Required:</strong> {String(info.waterGlobeRequired ?? info.WaterGlobeRequired)}</div>
-                  </div>
-                ) : <pre>Not fetched</pre>}
-              </div>
-            </div>
-
-            <div className="section">
-              <div className="section-header">
-                <h4 style={{ margin: 0 }}>Location</h4>
-                <div><button className="btn ghost" onClick={fetchLoc}>{loadingLoc ? "Loading…" : "Get Location"}</button></div>
-              </div>
-              <div style={{ marginTop: 8 }}>
-                {loadingLoc ? <div className="small">Loading…</div> : loc ? (
-                  <div className="info-grid">
-                    <div><strong>Location Name:</strong> {loc.locationName ?? loc.location_name ?? "—"}</div>
-                    <div><strong>Light Level:</strong> {loc.lightLevel ?? loc.LightLevel ?? "—"}</div>
-                  </div>
-                ) : <pre>Not fetched</pre>}
-              </div>
+              {!modalLoading && !modalError && !modalData && (
+                <div className="small" style={{ color: "var(--muted)" }}>No data found.</div>
+              )}
             </div>
           </div>
-        </>
+        </div>
       )}
-
-      <div className="footer-note small">Tip: Click "Get Care/Info/Location" to call the corresponding GET endpoints and show results. Use the browser Network tab to capture request/response for evidence.</div>
-    </div>
+    </>
   );
 }
