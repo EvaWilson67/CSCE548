@@ -4,12 +4,12 @@ export default function Header() {
   return (
     <div className="header">
       <div>
-        <h1>🌿 Plant Tracker</h1>
-        <div className="sub small">Client UI — calls the Plant service for CRUD & details</div>
+        <h1 style={{ margin: 0 }}>🌿 Plant Manager (Full CRUD)</h1>
+        <div className="small">Plants + Care / Information / Location</div>
       </div>
-      <div style={{textAlign:"right"}}>
-        <div className="small">API: <strong style={{color:"#0f172a"}}>{import.meta.env.VITE_API_BASE}</strong></div>
-        <div className="small">Mode: <em>demo</em></div>
+
+      <div style={{ textAlign: "right" }}>
+        <div className="small">API: <strong style={{ color: "#0b3b13" }}>{import.meta.env.VITE_API_BASE || "http://localhost:8080"}</strong></div>
       </div>
     </div>
   );

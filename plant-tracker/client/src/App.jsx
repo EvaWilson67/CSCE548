@@ -1,20 +1,17 @@
-import React, { useState } from "react";
-import Header from "./components/Header";
+// src/App.jsx
+import React from "react";
 import PlantList from "./components/PlantList";
-import PlantDetail from "./components/PlantDetail";
+import "./index.css";
 
 export default function App() {
-  const [selectedId, setSelectedId] = useState(null);
-
   return (
     <div className="app-shell">
-      <Header />
-      <div className="layout">
-        <PlantList onSelect={(id) => setSelectedId(id)} />
-        <div>
-          <PlantDetail plantId={selectedId} onBack={() => setSelectedId(null)} />
-        </div>
+      <div className="header">
+        <h2>My Plant Manager</h2>
+        <div className="small-muted">Plants • Care • Info • Locations</div>
       </div>
+
+      <PlantList />
     </div>
   );
 }

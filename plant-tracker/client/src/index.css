@@ -1,14 +1,211 @@
-:root { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-body { margin: 0; padding: 0; background: #f7f7f8; color: #111; }
-.app { max-width: 1000px; margin: 24px auto; padding: 12px; }
-header h1 { margin: 0 0 6px 0; }
-.muted { color: #666; font-size: 13px; }
-main { display:flex; gap: 12px; margin-top: 12px; }
-.panel { flex:1; background:#fff; border-radius:8px; padding:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.list-item { display:flex; justify-content:space-between; padding:8px 4px; border-bottom:1px solid #eee; align-items:center; }
-.list-item:last-child { border-bottom: none; }
-button { padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; }
-button:hover { transform: translateY(-1px); }
-.error { color: #900; background: #fee; padding:8px; border-radius:6px; margin-bottom:8px; }
-pre { background:#f2f4f6; padding:8px; border-radius:6px; font-size:13px; overflow:auto; max-height:320px; }
-.small { font-size:12px; }
+:root {
+  --bg: #f6f8fa;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --accent: #16a34a;
+  --danger: #dc2626;
+  --shadow-weak: rgba(12,15,20,0.06);
+  --shadow-strong: rgba(2,6,23,0.12);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Reset / base */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: #111;
+  font-family: inherit;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* Layout container */
+.app-shell {
+  max-width: 1000px;
+  margin: 28px auto;
+  padding: 16px;
+}
+
+/* Header / lists */
+.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.list-header { display:flex; justify-content:space-between; align-items:center; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 6px 18px var(--shadow-weak);
+}
+
+/* Plant grid / cards */
+.plant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.plant-card {
+  background: #fcfffb;
+  border: 1px solid #eef6ee;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+
+.plant-card:hover { transform: translateY(-4px); }
+
+/* Text/metadata */
+.plant-title { font-weight: 700; }
+.plant-meta { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+.title, .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* Sections */
+.section {
+  border: 1px solid #eef2f1;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: #fbfffb;
+}
+
+/* Title inside section should not add extra bottom margin */
+.section .title { margin-bottom: 0; }
+
+/* Controls group */
+.controls { display:flex; gap:8px; align-items:center; }
+
+/* Small / muted text */
+.small { font-size: 13px; color: var(--muted); }
+.small-muted { color: var(--muted); font-size: 12px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  transition: transform .06s ease, box-shadow .08s ease, opacity .08s ease;
+}
+
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn.accent { background: var(--accent); color: #fff; border: 0; }
+.btn.ghost { background: transparent; border: 1px solid rgba(0,0,0,0.06); }
+.btn.danger { background: var(--danger); color: #fff; border: 0; }
+
+/* Smaller button variant */
+.btn.small { padding: 6px 10px; font-size: 13px; }
+
+/* Inputs, selects, textarea, date/time: unified appearance */
+.input,
+textarea.input,
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select {
+  box-sizing: border-box;
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.25;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15,23,42,0.08);
+  background: #fff;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  transition: box-shadow .12s ease, border-color .12s ease;
+  height: 38px; /* consistent height */
+}
+
+/* allow textareas to grow while keeping initial size */
+textarea.input { min-height: 64px; height: auto; resize: vertical; width: 100%; }
+
+/* Small variants */
+.input.small,
+input.small,
+select.small,
+input[type="date"].small,
+input[type="time"].small {
+  padding: 8px 10px;
+  font-size: 13px;
+  height: 34px;
+}
+
+/* padded helper class */
+.input.padded { padding: 12px 14px; }
+
+/* Focus state (accessible) */
+.input:focus,
+textarea.input:focus,
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+select:focus {
+  outline: none;
+  border-color: rgba(34,197,94,0.9); /* green-ish focus */
+  box-shadow: 0 0 0 4px rgba(34,197,94,0.06);
+}
+
+/* Form row layout */
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Modal overlay and card (single source of truth) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 999;
+}
+
+.modal-card {
+  width: 900px;
+  max-width: 100%;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 30px var(--shadow-strong);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* Utility center */
+.center { display:flex; align-items:center; justify-content:center; }
+
+/* Responsive tweaks */
+@media (max-width: 520px) {
+  .form-row { flex-direction: column; align-items: stretch; }
+  .plant-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .modal-card { padding: 12px; width: 100%; margin: 0 6px; }
+}
+
+/* Minor visual tweaks */
+.plant-meta, .small { color: var(--muted); }

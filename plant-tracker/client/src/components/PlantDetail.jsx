@@ -1,226 +1,536 @@
-// src/components/PlantDetail.jsx
-import React, { useState } from "react";
-import { getCare, getInformation, getLocation } from "../ApiClient";
-import "../App.css";
+import React, { useEffect, useState } from "react";
+import PlantForm from "./PlantForm";
+import {
+  getPlant, updatePlant, deletePlant,
+  getCare, createCare, updateCare, deleteCare,
+  getInformation, createInformation, updateInformation, deleteInformation,
+  getLocation, createLocation, updateLocation, deleteLocation
+} from "../ApiClient";
 
 /**
- * PlantDetail component — shows plant summary and three subtable titles.
- * Now: clicking a section fetches and expands that section inline
- * (no second modal on top of a modal).
+ * PlantDetail: modal with plant header + CRUD for Care / Information / Location
  */
-export default function PlantDetail({ plant, onBack }) {
-  const [sections, setSections] = useState({
-    care: { open: false, loading: false, data: null, error: null },
-    information: { open: false, loading: false, data: null, error: null },
-    location: { open: false, loading: false, data: null, error: null },
-  });
+export default function PlantDetail({ id, onClose, startEditing = false, onSaved, onDeleted }) {
+  const [plant, setPlant] = useState(null);
+  const [loadingPlant, setLoadingPlant] = useState(true);
+  const [editingPlant, setEditingPlant] = useState(Boolean(startEditing));
+  const [plantForm, setPlantForm] = useState({});
+  const [savingPlant, setSavingPlant] = useState(false);
 
-  if (!plant) {
-    return <div className="card">No plant selected.</div>;
-  }
+  // subresources
+  const [care, setCare] = useState({ loading: true, data: null, editing: false, draft: {}, saving: false });
+  const [info, setInfo] = useState({ loading: true, data: null, editing: false, draft: {}, saving: false });
+  const [loc, setLoc] = useState({ loading: true, data: null, editing: false, draft: {}, saving: false });
 
-  const plantId = plant.id ?? plant.plantId ?? plant.Plant_ID ?? plant.PlantId ?? plant.plant_id;
-
-  const fetchSection = async (type) => {
-    // toggle semantics: if already open, simply close it
-    setSections((prev) => ({ ...prev, [type]: { ...prev[type], open: !prev[type].open } }));
-    // if we're opening and have data already, do nothing
-    if (sections[type].open === false && (sections[type].data || sections[type].error)) {
-      // data already present, just open — above toggle already flipped open, nothing else
+  useEffect(() => {
+    if (!id && id !== 0) {
+      setPlant(null);
+      setLoadingPlant(false);
       return;
     }
-    // if we're opening (previously closed) and no data, fetch
-    if (sections[type].open === false) {
-      setSections((prev) => ({ ...prev, [type]: { ...prev[type], loading: true, error: null } }));
+
+    let cancelled = false;
+    async function loadAll() {
+      setLoadingPlant(true);
       try {
-        let res;
-        if (type === "care") res = await getCare(plantId);
-        else if (type === "information") res = await getInformation(plantId);
-        else if (type === "location") res = await getLocation(plantId);
-        else throw new Error("Unknown type: " + type);
-
-        if (Array.isArray(res) && res.length === 1) res = res[0];
-        setSections((prev) => ({ ...prev, [type]: { ...prev[type], data: res, loading: false, error: null, open: true } }));
-      } catch (err) {
-        console.error("[PlantDetail] fetchSection error", err);
-        setSections((prev) => ({ ...prev, [type]: { ...prev[type], error: String(err), loading: false, open: true } }));
+        const p = await getPlant(id);
+        if (cancelled) return;
+        setPlant(p);
+        setPlantForm({
+          name: p?.name || "",
+          type: p?.type || "",
+          height: p?.height || "",
+          location: p?.location || "",
+          notes: p?.notes || ""
+        });
+        setEditingPlant(Boolean(startEditing));
+      } catch (e) {
+        console.error("load plant", e);
+        setPlant(null);
+      } finally {
+        if (!cancelled) setLoadingPlant(false);
       }
+
+      // load subresources
+      setCare(c => ({ ...c, loading: true }));
+      setInfo(i => ({ ...i, loading: true }));
+      setLoc(l => ({ ...l, loading: true }));
+
+      try {
+        const [careRes, infoRes, locRes] = await Promise.allSettled([
+          getCare(id),
+          getInformation(id),
+          getLocation(id)
+        ]);
+        if (cancelled) return;
+        const settle = r => r.status === "fulfilled" ? r.value : null;
+        const careVal = settle(careRes);
+        const infoVal = settle(infoRes);
+        const locVal = settle(locRes);
+
+        setCare({
+          loading: false,
+          data: careVal,
+          editing: false,
+          draft: careVal ? { lastSoilChange: careVal.lastSoilChange || "", lastWatering: careVal.lastWatering || "", notes: careVal.notes || "" } : { lastSoilChange: "", lastWatering: "", notes: "" },
+          saving: false
+        });
+
+        setInfo({
+          loading: false,
+          data: infoVal,
+          editing: false,
+          draft: infoVal ? { soilType: infoVal.soilType || "", potSize: infoVal.potSize || "", fromAnotherPlant: !!infoVal.fromAnotherPlant } : { soilType: "", potSize: "", fromAnotherPlant: false },
+          saving: false
+        });
+
+        setLoc({
+          loading: false,
+          data: locVal,
+          editing: false,
+          draft: locVal ? { locationName: locVal.locationName || "", lightLevel: locVal.lightLevel || "", notes: locVal.notes || "" } : { locationName: "", lightLevel: "", notes: "" },
+          saving: false
+        });
+
+        // prefer locationName from subresource for plant edit form if present
+        if (locVal && locVal.locationName) {
+          setPlantForm(prev => ({ ...prev, location: locVal.locationName }));
+          // also keep plant.state in sync so header shows it immediately
+          setPlant(prev => prev ? ({ ...prev, location: locVal.locationName }) : prev);
+        }
+      } catch (e) {
+        console.error("load subs", e);
+        setCare(c => ({ ...c, loading: false }));
+        setInfo(i => ({ ...i, loading: false }));
+        setLoc(l => ({ ...l, loading: false }));
+      }
+    }
+
+    loadAll();
+    return () => { cancelled = true; };
+  }, [id, startEditing]);
+
+  // plant header handlers
+  const onPlantChange = (field, value) => setPlantForm(prev => ({ ...prev, [field]: value }));
+
+  const savePlant = async () => {
+    setSavingPlant(true);
+    try {
+      const savedPlant = await updatePlant(id, plantForm);
+      setPlant(savedPlant);
+      setEditingPlant(false);
+
+      // sync plantForm.location <-> location subresource
+      const formLocation = (plantForm.location || "").trim();
+      const locExists = loc.data && loc.data.locationName;
+      const plantId = id;
+
+      if (formLocation) {
+        try {
+          if (locExists) {
+            if ((loc.data.locationName || "") !== formLocation) {
+              const updatedLoc = await updateLocation(plantId, { locationName: formLocation, lightLevel: loc.data.lightLevel ?? "", notes: loc.data.notes ?? "" });
+              // update loc state to reflect updated subresource
+              setLoc(prev => ({ ...prev, data: updatedLoc, draft: { locationName: updatedLoc.locationName || "", lightLevel: updatedLoc.lightLevel || "", notes: updatedLoc.notes || "" } }));
+              // also sync plant state location
+              setPlant(prev => prev ? ({ ...prev, location: updatedLoc.locationName || formLocation }) : prev);
+            }
+          } else {
+            const createdLoc = await createLocation(plantId, { locationName: formLocation });
+            // update loc state to reflect new subresource
+            setLoc(prev => ({ ...prev, data: createdLoc, draft: { locationName: createdLoc.locationName || "", lightLevel: createdLoc.lightLevel || "", notes: createdLoc.notes || "" } }));
+            // also sync plant state location
+            setPlant(prev => prev ? ({ ...prev, location: createdLoc.locationName || formLocation }) : prev);
+          }
+        } catch (locErr) {
+          console.error("sync location after savePlant failed", locErr);
+        }
+      } else {
+        if (loc.data && loc.data.locationName) {
+          try {
+            await deleteLocation(plantId);
+            setLoc({ loading: false, data: null, editing: false, draft: { locationName: "", lightLevel: "", notes: "" }, saving: false });
+            // clear plant location as well
+            setPlant(prev => prev ? ({ ...prev, location: "" }) : prev);
+            // clear plantForm location too
+            setPlantForm(prev => ({ ...prev, location: "" }));
+          } catch (delErr) {
+            console.error("failed to delete location after clearing plant location field", delErr);
+          }
+        }
+      }
+
+      if (onSaved) onSaved(savedPlant);
+    } catch (e) {
+      alert("Save plant failed: " + (e.message || e));
+    } finally {
+      setSavingPlant(false);
     }
   };
 
-  // Keys to hide everywhere
-  const forbiddenKeys = new Set([
-    "plantId", "plant_id", "Plant_ID", "PlantId", "plantid",
-    "id", "ID", "Id"
-  ]);
-
-  // Pretty-print keys: camelCase / snake_case -> Title Case
-  const prettyKey = (k) => {
-    if (!k || typeof k !== "string") return String(k);
-    const spaced = k
-      .replace(/_/g, " ")
-      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-      .replace(/\s+/g, " ")
-      .trim();
-    return spaced.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  const handleDeletePlant = async () => {
+    if (!confirm("Delete this plant? This will remove associated records.")) return;
+    try {
+      await deletePlant(id);
+      if (onDeleted) onDeleted(id);
+      onClose();
+    } catch (e) {
+      alert("Delete failed: " + (e.message || e));
+    }
   };
 
-  // Stylized renderer for key/value UI (handles nested objects/arrays)
-  const renderStylized = (obj, depth = 0) => {
-    if (obj === null || obj === undefined) {
-      return <div className="small" style={{ color: "var(--muted)" }}>—</div>;
+  // helpers
+  const formatDateDisplay = (val) => {
+    if (!val) return "(none)";
+    try {
+      const d = new Date(val);
+      if (isNaN(d)) return val;
+      return d.toLocaleDateString();
+    } catch {
+      return val;
     }
-    if (typeof obj !== "object") {
-      if (typeof obj === "boolean") {
-        return <span className={`badge-${obj ? "true" : "false"}`}>{String(obj)}</span>;
-      }
-      return <div className="val">{String(obj)}</div>;
-    }
+  };
 
-    if (Array.isArray(obj)) {
-      if (obj.length === 0) return <div className="small" style={{ color: "var(--muted)" }}>(empty)</div>;
-      return (
-        <div className="nested-array" style={{ marginLeft: depth * 8 }}>
-          {obj.map((it, i) => (
-            <div key={i} className="nested-card">
-              <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>#{i + 1}</div>
-              <div>{renderStylized(it, depth + 1)}</div>
-            </div>
-          ))}
-        </div>
-      );
-    }
+  // ---------- Care handlers ----------
+  const startEditingCare = () => {
+    setCare(c => ({
+      ...c,
+      editing: true,
+      draft: c.data ? { lastSoilChange: c.data.lastSoilChange || "", lastWatering: c.data.lastWatering || "", notes: c.data.notes || "" } : { lastSoilChange: "", lastWatering: "", notes: "" }
+    }));
+  };
+  const cancelCareEdit = () => setCare(c => ({ ...c, editing: false, draft: c.data ? { lastSoilChange: c.data.lastSoilChange || "", lastWatering: c.data.lastWatering || "", notes: c.data.notes || "" } : { lastSoilChange: "", lastWatering: "", notes: "" } }));
+  const changeCareDraft = (field, value) => setCare(c => ({ ...c, draft: { ...(c.draft || {}), [field]: value } }));
 
-    const entries = Object.entries(obj).filter(([k]) => !forbiddenKeys.has(k));
-    if (entries.length === 0) {
-      return <div className="small" style={{ color: "var(--muted)" }}>(no visible fields)</div>;
+  const saveCare = async () => {
+    setCare(c => ({ ...c, saving: true }));
+    try {
+      let saved;
+      if (care.data) saved = await updateCare(id, care.draft);
+      else saved = await createCare(id, care.draft);
+      setCare({ loading: false, data: saved, editing: false, draft: { lastSoilChange: saved.lastSoilChange || "", lastWatering: saved.lastWatering || "", notes: saved.notes || "" }, saving: false });
+    } catch (e) {
+      alert("Save care failed: " + (e.message || e));
+      setCare(c => ({ ...c, saving: false }));
     }
+  };
 
-    return (
-      <div className="kv-grid" style={{ marginLeft: depth * 6 }}>
-        {entries.map(([k, v]) => (
-          <div key={k} className="kv-row">
-            <div className="kv-key">{prettyKey(k)}</div>
-            <div className="kv-val">{renderStylized(v, depth + 1)}</div>
+  const deleteCareHandler = async () => {
+    if (!confirm("Delete care record?")) return;
+    try {
+      await deleteCare(id);
+      setCare({ loading: false, data: null, editing: false, draft: { lastSoilChange: "", lastWatering: "", notes: "" }, saving: false });
+    } catch (e) {
+      alert("Delete care failed: " + (e.message || e));
+    }
+  };
+
+  // ---------- Information handlers ----------
+  const startEditingInfo = () => {
+    setInfo(i => ({ ...i, editing: true, draft: i.data ? { soilType: i.data.soilType || "", potSize: i.data.potSize || "", fromAnotherPlant: !!i.data.fromAnotherPlant } : { soilType: "", potSize: "", fromAnotherPlant: false } }));
+  };
+  const cancelInfoEdit = () => setInfo(i => ({ ...i, editing: false, draft: i.data ? { soilType: i.data.soilType || "", potSize: i.data.potSize || "", fromAnotherPlant: !!i.data.fromAnotherPlant } : { soilType: "", potSize: "", fromAnotherPlant: false } }));
+  const changeInfoDraft = (field, value) => setInfo(i => ({ ...i, draft: { ...(i.draft || {}), [field]: value } }));
+
+  const saveInfo = async () => {
+    setInfo(i => ({ ...i, saving: true }));
+    try {
+      let saved;
+      if (info.data) saved = await updateInformation(id, info.draft);
+      else saved = await createInformation(id, info.draft);
+      setInfo({ loading: false, data: saved, editing: false, draft: { soilType: saved.soilType || "", potSize: saved.potSize || "", fromAnotherPlant: !!saved.fromAnotherPlant }, saving: false });
+    } catch (e) {
+      alert("Save information failed: " + (e.message || e));
+      setInfo(i => ({ ...i, saving: false }));
+    }
+  };
+
+  const deleteInfoHandler = async () => {
+    if (!confirm("Delete information record?")) return;
+    try {
+      await deleteInformation(id);
+      setInfo({ loading: false, data: null, editing: false, draft: { soilType: "", potSize: "", fromAnotherPlant: false }, saving: false });
+    } catch (e) {
+      alert("Delete information failed: " + (e.message || e));
+    }
+  };
+
+  // ---------- Location handlers ----------
+  const startEditingLoc = () => {
+    setLoc(l => ({ ...l, editing: true, draft: l.data ? { locationName: l.data.locationName || "", lightLevel: l.data.lightLevel || "", notes: l.data.notes || "" } : { locationName: "", lightLevel: "", notes: "" } }));
+  };
+  const cancelLocEdit = () => setLoc(l => ({ ...l, editing: false, draft: l.data ? { locationName: l.data.locationName || "", lightLevel: l.data.lightLevel || "", notes: l.data.notes || "" } : { locationName: "", lightLevel: "", notes: "" } }));
+  const changeLocDraft = (field, value) => setLoc(l => ({ ...l, draft: { ...(l.draft || {}), [field]: value } }));
+
+  const saveLoc = async () => {
+    setLoc(l => ({ ...l, saving: true }));
+    try {
+      let saved;
+      if (loc.data) saved = await updateLocation(id, loc.draft);
+      else saved = await createLocation(id, loc.draft);
+      setLoc({ loading: false, data: saved, editing: false, draft: { locationName: saved.locationName || "", lightLevel: saved.lightLevel || "", notes: saved.notes || "" }, saving: false });
+
+      // Sync plantForm.location so header edit shows the value
+      setPlantForm(prev => ({ ...prev, location: saved.locationName || "" }));
+      // ALSO sync plant state so other UI reads the new location immediately
+      setPlant(prev => prev ? ({ ...prev, location: saved.locationName || "" }) : prev);
+    } catch (e) {
+      alert("Save location failed: " + (e.message || e));
+      setLoc(l => ({ ...l, saving: false }));
+    }
+  };
+
+  const deleteLocHandler = async () => {
+    if (!confirm("Delete location record?")) return;
+    try {
+      await deleteLocation(id);
+      setLoc({ loading: false, data: null, editing: false, draft: { locationName: "", lightLevel: "", notes: "" }, saving: false });
+      setPlantForm(prev => ({ ...prev, location: "" }));
+      setPlant(prev => prev ? ({ ...prev, location: "" }) : prev);
+    } catch (e) {
+      alert("Delete location failed: " + (e.message || e));
+    }
+  };
+
+  if (loadingPlant) return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card center">Loading…</div>
+    </div>
+  );
+
+  if (!plant) return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card">
+        <div className="modal-header">
+          <h3 style={{ margin: 0 }}>Plant not found</h3>
+          <div className="controls">
+            <button className="btn ghost" onClick={onClose}>Close</button>
           </div>
-        ))}
+        </div>
+        <div className="small">Could not load plant.</div>
       </div>
-    );
-  };
+    </div>
+  );
 
-  const makeSectionProps = (type) => ({
-    role: "button",
-    tabIndex: 0,
-    className: "modal-section clickable section-card",
-    onClick: (e) => {
-      e.stopPropagation();
-      fetchSection(type);
-    },
-    onKeyDown: (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        fetchSection(type);
-      }
-    },
-  });
+  // Choose display location: prefer subresource, then current form (most recent), then plant record
+  const displayLocation = (loc.data && loc.data.locationName) ? loc.data.locationName : (plantForm.location || plant.location || "(no location)");
 
   return (
-    <>
-      <div className="card">
-        <div className="list-header">
-          <h3 style={{ margin: 0 }}>{plant.name ?? "Unnamed Plant"}</h3>
-          {onBack && <button className="btn ghost" onClick={onBack}>Back</button>}
-        </div>
-
-        <div style={{ marginTop: 10 }}>
-          <div className="small"><strong>Type:</strong> {plant.type ?? "—"}</div>
-          <div className="small"><strong>Height:</strong> {plant.height ?? "—"}</div>
-        </div>
-
-        <hr />
-
-        <h4 style={{ marginBottom: 12 }}>Details</h4>
-
-        <div className="subtable-grid">
-          <div {...makeSectionProps("care")}>
-            <h4 className="subtable-title">Care</h4>
-            <div className="small muted">Click to expand</div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="title">
+          <div>
+            <h3 style={{ margin: 0 }}>{editingPlant ? "Edit plant" : (plant.name || "Plant detail")}</h3>
+            <div className="small-muted">{displayLocation}</div>
           </div>
 
-          <div {...makeSectionProps("information")}>
-            <h4 className="subtable-title">Information</h4>
-            <div className="small muted">Click to expand</div>
-          </div>
-
-          <div {...makeSectionProps("location")}>
-            <h4 className="subtable-title">Location</h4>
-            <div className="small muted">Click to expand</div>
+          <div className="controls">
+            <button className="btn ghost" onClick={onClose}>Close</button>
           </div>
         </div>
 
-        {/* Inline expanded content area */}
-        <div style={{ marginTop: 12 }}>
-          {/* CARE */}
-          {sections.care.open && (
-            <div className="card" style={{ marginBottom: 10 }}>
-              <div className="list-header">
-                <h4 style={{ margin: 0 }}>Care</h4>
-                <div className="small" style={{ color: "var(--muted)" }}>{plant.name}</div>
-              </div>
-              <div className="modal-body" style={{ marginTop: 8 }}>
-                {sections.care.loading && <div className="small">Loading…</div>}
-                {sections.care.error && <div className="small error">Error: {sections.care.error}</div>}
-                {!sections.care.loading && !sections.care.error && sections.care.data && (
-                  <div className="info-inner">{renderStylized(sections.care.data)}</div>
-                )}
-                {!sections.care.loading && !sections.care.error && !sections.care.data && (
-                  <div className="small" style={{ color: "var(--muted)" }}>No data.</div>
-                )}
+        <div>
+          {!editingPlant && (
+            <div className="section">
+              <div className="title">
+                <div>
+                  <div style={{ fontWeight: 700 }}>{plant.name}</div>
+                  <div className="small-muted">{plant.type} • Height: {plant.height || "—"}</div>
+                </div>
+                <div className="controls">
+                  <button className="btn" onClick={() => {
+                    setEditingPlant(true);
+                    setPlantForm({ name: plant.name || "", type: plant.type || "", height: plant.height || "", location: (loc.data && loc.data.locationName) ? loc.data.locationName : (plant.location || ""), notes: plant.notes || "" });
+                  }}>Edit</button>
+                  <button className="btn danger" onClick={handleDeletePlant}>Delete</button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* INFORMATION */}
-          {sections.information.open && (
-            <div className="card" style={{ marginBottom: 10 }}>
-              <div className="list-header">
-                <h4 style={{ margin: 0 }}>Information</h4>
-                <div className="small" style={{ color: "var(--muted)" }}>{plant.name}</div>
-              </div>
-              <div className="modal-body" style={{ marginTop: 8 }}>
-                {sections.information.loading && <div className="small">Loading…</div>}
-                {sections.information.error && <div className="small error">Error: {sections.information.error}</div>}
-                {!sections.information.loading && !sections.information.error && sections.information.data && (
-                  <div className="info-inner">{renderStylized(sections.information.data)}</div>
-                )}
-                {!sections.information.loading && !sections.information.error && !sections.information.data && (
-                  <div className="small" style={{ color: "var(--muted)" }}>No data.</div>
-                )}
-              </div>
-            </div>
+          {editingPlant && (
+            <PlantForm
+              value={plantForm}
+              onChange={(f, v) => setPlantForm(prev => ({ ...prev, [f]: v }))}
+              onSubmit={savePlant}
+              onCancel={() => setEditingPlant(false)}
+              submitting={savingPlant}
+            />
           )}
+        </div>
 
-          {/* LOCATION */}
-          {sections.location.open && (
-            <div className="card" style={{ marginBottom: 10 }}>
-              <div className="list-header">
-                <h4 style={{ margin: 0 }}>Location</h4>
-                <div className="small" style={{ color: "var(--muted)" }}>{plant.name}</div>
-              </div>
-              <div className="modal-body" style={{ marginTop: 8 }}>
-                {sections.location.loading && <div className="small">Loading…</div>}
-                {sections.location.error && <div className="small error">Error: {sections.location.error}</div>}
-                {!sections.location.loading && !sections.location.error && sections.location.data && (
-                  <div className="info-inner">{renderStylized(sections.location.data)}</div>
-                )}
-                {!sections.location.loading && !sections.location.error && !sections.location.data && (
-                  <div className="small" style={{ color: "var(--muted)" }}>No data.</div>
-                )}
-              </div>
+        <hr style={{ margin: "14px 0" }} />
+
+        {/* CARE SECTION */}
+        <div className="section">
+          <div className="title">
+            <div>
+              <strong>Care</strong>
+              <div className="small-muted">Watering, soil change, notes</div>
             </div>
-          )}
+            <div className="controls">
+              {care.loading ? null : care.editing ? (
+                <button className="btn ghost" onClick={cancelCareEdit}>Cancel</button>
+              ) : (
+                <>
+                  <button className="btn" onClick={startEditingCare}>{care.data ? "Edit" : "Create"}</button>
+                  {care.data && <button className="btn danger" onClick={deleteCareHandler}>Delete</button>}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div>
+            {care.loading && <div className="small">Loading…</div>}
+
+            {!care.loading && !care.editing && care.data && (
+              <div>
+                <div className="small-muted">Last watering: {care.data.lastWatering ? formatDateDisplay(care.data.lastWatering) : "(none)"}</div>
+                <div className="small-muted">Last soil change: {care.data.lastSoilChange ? formatDateDisplay(care.data.lastSoilChange) : "(none)"}</div>
+                <div style={{ marginTop: 8 }}>{care.data.notes || "(no notes)"}</div>
+              </div>
+            )}
+
+            {!care.loading && !care.editing && !care.data && (
+              <div className="small-muted">(no care record)</div>
+            )}
+
+            {care.editing && (
+              <div style={{ marginTop: 8 }}>
+                <div className="form-row">
+                  <input
+                    className="input"
+                    type="date"
+                    placeholder="Last soil change"
+                    value={care.draft.lastSoilChange ? (care.draft.lastSoilChange.length >= 10 ? care.draft.lastSoilChange.slice(0,10) : care.draft.lastSoilChange) : ""}
+                    onChange={(e) => changeCareDraft("lastSoilChange", e.target.value)}
+                  />
+                  <input
+                    className="input"
+                    type="date"
+                    placeholder="Last watering"
+                    value={care.draft.lastWatering ? (care.draft.lastWatering.length >= 10 ? care.draft.lastWatering.slice(0,10) : care.draft.lastWatering) : ""}
+                    onChange={(e) => changeCareDraft("lastWatering", e.target.value)}
+                  />
+                </div>
+                <div style={{ marginTop: 8}}>
+                  <textarea className="input" placeholder="Notes" value={care.draft.notes || ""} onChange={(e) => changeCareDraft("notes", e.target.value)} />
+                </div>
+                <div className="actions" style={{ marginTop: 8 }}>
+                  <button className="btn accent" onClick={saveCare} disabled={care.saving}>{care.saving ? "Saving…" : "Save"}</button>
+                  <button className="btn ghost" onClick={cancelCareEdit}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* INFORMATION SECTION */}
+        <div className="section">
+          <div className="title">
+            <div>
+              <strong>Information</strong>
+              <div className="small-muted">Soil type, pot size, from another plant</div>
+            </div>
+            <div className="controls">
+              {info.loading ? null : info.editing ? (
+                <button className="btn ghost" onClick={cancelInfoEdit}>Cancel</button>
+              ) : (
+                <>
+                  <button className="btn" onClick={startEditingInfo}>{info.data ? "Edit" : "Create"}</button>
+                  {info.data && <button className="btn danger" onClick={deleteInfoHandler}>Delete</button>}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div>
+            {info.loading && <div className="small">Loading…</div>}
+
+            {!info.loading && !info.editing && info.data && (
+              <div>
+                <div className="small-muted">Soil type: {info.data.soilType || "(none)"}</div>
+                <div className="small-muted">Pot size: {info.data.potSize || "(none)"}</div>
+                <div className="small-muted">From another plant: {info.data.fromAnotherPlant ? "Yes" : "No"}</div>
+              </div>
+            )}
+
+            {!info.loading && !info.editing && !info.data && (
+              <div className="small-muted">(no information record)</div>
+            )}
+
+            {info.editing && (
+              <div style={{ marginTop: 8 }}>
+                <div className="form-row">
+                  <input className="input" placeholder="Soil type" value={info.draft.soilType || ""} onChange={(e) => changeInfoDraft("soilType", e.target.value)} />
+                  <input className="input" placeholder="Pot size" value={info.draft.potSize || ""} onChange={(e) => changeInfoDraft("potSize", e.target.value)} />
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                  <input type="checkbox" checked={!!info.draft.fromAnotherPlant} onChange={(e) => changeInfoDraft("fromAnotherPlant", e.target.checked)} />
+                  <span className="small-muted">From another plant</span>
+                </label>
+
+                <div className="actions" style={{ marginTop: 8 }}>
+                  <button className="btn accent" onClick={saveInfo} disabled={info.saving}>{info.saving ? "Saving…" : "Save"}</button>
+                  <button className="btn ghost" onClick={cancelInfoEdit}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* LOCATION SECTION */}
+        <div className="section">
+          <div className="title">
+            <div>
+              <strong>Location</strong>
+              <div className="small-muted">Where the plant lives — light level, notes</div>
+            </div>
+            <div className="controls">
+              {loc.loading ? null : loc.editing ? (
+                <button className="btn ghost" onClick={cancelLocEdit}>Cancel</button>
+              ) : (
+                <>
+                  <button className="btn" onClick={startEditingLoc}>{loc.data ? "Edit" : "Create"}</button>
+                  {loc.data && <button className="btn danger" onClick={deleteLocHandler}>Delete</button>}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div>
+            {loc.loading && <div className="small">Loading…</div>}
+
+            {!loc.loading && !loc.editing && loc.data && (
+              <div>
+                <div className="small-muted">Location name: {loc.data.locationName || "(none)"}</div>
+                <div className="small-muted">Light level: {loc.data.lightLevel || "(none)"}</div>
+                <div style={{ marginTop: 8 }}>{loc.data.notes || "(no notes)"}</div>
+              </div>
+            )}
+
+            {!loc.loading && !loc.editing && !loc.data && (
+              <div className="small-muted">(no location record)</div>
+            )}
+
+            {loc.editing && (
+              <div style={{ marginTop: 8 }}>
+                <div className="form-row">
+                  <input className="input" placeholder="Location name" value={loc.draft.locationName || ""} onChange={(e) => changeLocDraft("locationName", e.target.value)} />
+                  <input className="input" placeholder="Light level" value={loc.draft.lightLevel || ""} onChange={(e) => changeLocDraft("lightLevel", e.target.value)} />
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <textarea className="input" placeholder="Notes" value={loc.draft.notes || ""} onChange={(e) => changeLocDraft("notes", e.target.value)} />
+                </div>
+                <div className="actions" style={{ marginTop: 8 }}>
+                  <button className="btn accent" onClick={saveLoc} disabled={loc.saving}>{loc.saving ? "Saving…" : "Save"}</button>
+                  <button className="btn ghost" onClick={cancelLocEdit}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

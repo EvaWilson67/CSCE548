@@ -228,3 +228,91 @@
 .muted {
   color: var(--muted);
 }
+
+
+/* grid for PlantDetail columns */
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* column container */
+.detail-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* clickable section header card */
+.section-card, .modal-section-header {
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+/* panel area that shows when expanded */
+.detail-panel, .modal-section-body {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--bg-muted);
+  border-radius: 6px;
+  min-height: 30px;
+}
+
+/* For the modal that lists multiple plants, use a 3-col layout there too */
+.modal-sections-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* small responsive behavior */
+@media (max-width: 900px) {
+  .details-grid, .modal-sections-grid {
+    grid-template-columns: 1fr; /* stack on narrow screens */
+  }
+}
+
+/* small icon-style button for header section icons */
+.icon-btn {
+  padding: 6px 8px;
+  border-radius: 8px;
+  min-width: 36px;
+  display: inline-flex;
+  align-items:center;
+  justify-content:center;
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+/* make inputs inside .info-inner blend visually */
+.info-inner .input,
+.info-inner textarea {
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 6px;
+  padding: 8px;
+  background: white;
+}
+
+/* ensure date input inherits font-size and align */
+.info-inner input[type="date"] {
+  height: 36px;
+  padding: 6px 8px;
+}
+
+/* smaller spacing for icon buttons inside section headers */
+.section-card .icon-btn,
+.modal-section-header .icon-btn {
+  padding: 6px;
+  border-radius: 8px;
+}
+
+/* when editing, soften the border glow so it still looks like view */
+.info-inner:focus-within {
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+  transform: translateY(0);
+}
+
