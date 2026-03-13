@@ -5,16 +5,15 @@ import "../App.css";
 
 /**
  * PlantDetail component — shows plant summary and three subtable titles.
- * Clicking a section opens a focused stylized modal. The focused modal
- * header includes "ModalType — Plant {id}" while the body hides any ID
- * fields (plantId, id, plant_id, etc.) at any nesting level.
+ * Now: clicking a section fetches and expands that section inline
+ * (no second modal on top of a modal).
  */
 export default function PlantDetail({ plant, onBack }) {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalType, setModalType] = useState("care");
-  const [modalData, setModalData] = useState(null);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState(null);
+  const [sections, setSections] = useState({
+    care: { open: false, loading: false, data: null, error: null },
+    information: { open: false, loading: false, data: null, error: null },
+    location: { open: false, loading: false, data: null, error: null },
+  });
 
   if (!plant) {
     return <div className="card">No plant selected.</div>;
@@ -22,41 +21,31 @@ export default function PlantDetail({ plant, onBack }) {
 
   const plantId = plant.id ?? plant.plantId ?? plant.Plant_ID ?? plant.PlantId ?? plant.plant_id;
 
-  const openSubtable = async (type) => {
-    const pid = plantId;
-    if (!pid) {
-      setModalError("Missing plant id");
-      setModalOpen(true);
+  const fetchSection = async (type) => {
+    // toggle semantics: if already open, simply close it
+    setSections((prev) => ({ ...prev, [type]: { ...prev[type], open: !prev[type].open } }));
+    // if we're opening and have data already, do nothing
+    if (sections[type].open === false && (sections[type].data || sections[type].error)) {
+      // data already present, just open — above toggle already flipped open, nothing else
       return;
     }
+    // if we're opening (previously closed) and no data, fetch
+    if (sections[type].open === false) {
+      setSections((prev) => ({ ...prev, [type]: { ...prev[type], loading: true, error: null } }));
+      try {
+        let res;
+        if (type === "care") res = await getCare(plantId);
+        else if (type === "information") res = await getInformation(plantId);
+        else if (type === "location") res = await getLocation(plantId);
+        else throw new Error("Unknown type: " + type);
 
-    setModalType(type);
-    setModalOpen(true);
-    setModalLoading(true);
-    setModalError(null);
-    setModalData(null);
-
-    try {
-      let res;
-      if (type === "care") res = await getCare(pid);
-      else if (type === "information") res = await getInformation(pid);
-      else if (type === "location") res = await getLocation(pid);
-      else throw new Error("Unknown type: " + type);
-
-      if (Array.isArray(res) && res.length === 1) res = res[0];
-      setModalData(res);
-    } catch (err) {
-      console.error("[PlantDetail] openSubtable error", err);
-      setModalError(String(err));
-    } finally {
-      setModalLoading(false);
+        if (Array.isArray(res) && res.length === 1) res = res[0];
+        setSections((prev) => ({ ...prev, [type]: { ...prev[type], data: res, loading: false, error: null, open: true } }));
+      } catch (err) {
+        console.error("[PlantDetail] fetchSection error", err);
+        setSections((prev) => ({ ...prev, [type]: { ...prev[type], error: String(err), loading: false, open: true } }));
+      }
     }
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setModalData(null);
-    setModalError(null);
   };
 
   // Keys to hide everywhere
@@ -68,7 +57,6 @@ export default function PlantDetail({ plant, onBack }) {
   // Pretty-print keys: camelCase / snake_case -> Title Case
   const prettyKey = (k) => {
     if (!k || typeof k !== "string") return String(k);
-    // replace underscores with spaces, insert spaces before caps, then title-case
     const spaced = k
       .replace(/_/g, " ")
       .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -79,7 +67,6 @@ export default function PlantDetail({ plant, onBack }) {
 
   // Stylized renderer for key/value UI (handles nested objects/arrays)
   const renderStylized = (obj, depth = 0) => {
-    // primitives
     if (obj === null || obj === undefined) {
       return <div className="small" style={{ color: "var(--muted)" }}>—</div>;
     }
@@ -90,7 +77,6 @@ export default function PlantDetail({ plant, onBack }) {
       return <div className="val">{String(obj)}</div>;
     }
 
-    // arrays
     if (Array.isArray(obj)) {
       if (obj.length === 0) return <div className="small" style={{ color: "var(--muted)" }}>(empty)</div>;
       return (
@@ -105,10 +91,7 @@ export default function PlantDetail({ plant, onBack }) {
       );
     }
 
-    // plain object: filter out forbidden keys
-    const entries = Object.entries(obj).filter(([k, v]) => !forbiddenKeys.has(k));
-
-    // if nothing remains (all fields were IDs or filtered) show muted note
+    const entries = Object.entries(obj).filter(([k]) => !forbiddenKeys.has(k));
     if (entries.length === 0) {
       return <div className="small" style={{ color: "var(--muted)" }}>(no visible fields)</div>;
     }
@@ -131,12 +114,12 @@ export default function PlantDetail({ plant, onBack }) {
     className: "modal-section clickable section-card",
     onClick: (e) => {
       e.stopPropagation();
-      openSubtable(type);
+      fetchSection(type);
     },
     onKeyDown: (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        openSubtable(type);
+        fetchSection(type);
       }
     },
   });
@@ -161,54 +144,83 @@ export default function PlantDetail({ plant, onBack }) {
         <div className="subtable-grid">
           <div {...makeSectionProps("care")}>
             <h4 className="subtable-title">Care</h4>
-            <div className="small muted">Click to view details</div>
+            <div className="small muted">Click to expand</div>
           </div>
 
           <div {...makeSectionProps("information")}>
             <h4 className="subtable-title">Information</h4>
-            <div className="small muted">Click to view details</div>
+            <div className="small muted">Click to expand</div>
           </div>
 
           <div {...makeSectionProps("location")}>
             <h4 className="subtable-title">Location</h4>
-            <div className="small muted">Click to view details</div>
+            <div className="small muted">Click to expand</div>
           </div>
         </div>
-      </div>
 
-      {/* Focused modal: header shows "Type — Plant {id}" but body hides ID keys */}
-      {modalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={closeModal}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h3 style={{ margin: 0 }}>
-                  {modalType.charAt(0).toUpperCase() + modalType.slice(1)}{plantId ? ` — Plant ${plantId}` : ""}
-                </h3>
-                {/* optionally show plant.name as subtitle */}
+        {/* Inline expanded content area */}
+        <div style={{ marginTop: 12 }}>
+          {/* CARE */}
+          {sections.care.open && (
+            <div className="card" style={{ marginBottom: 10 }}>
+              <div className="list-header">
+                <h4 style={{ margin: 0 }}>Care</h4>
                 <div className="small" style={{ color: "var(--muted)" }}>{plant.name}</div>
               </div>
-
-              <button className="btn ghost" onClick={closeModal}>Close</button>
+              <div className="modal-body" style={{ marginTop: 8 }}>
+                {sections.care.loading && <div className="small">Loading…</div>}
+                {sections.care.error && <div className="small error">Error: {sections.care.error}</div>}
+                {!sections.care.loading && !sections.care.error && sections.care.data && (
+                  <div className="info-inner">{renderStylized(sections.care.data)}</div>
+                )}
+                {!sections.care.loading && !sections.care.error && !sections.care.data && (
+                  <div className="small" style={{ color: "var(--muted)" }}>No data.</div>
+                )}
+              </div>
             </div>
+          )}
 
-            <div className="modal-body">
-              {modalLoading && <div className="small">Loading...</div>}
-              {modalError && <div className="small error">{modalError}</div>}
-
-              {!modalLoading && !modalError && modalData && (
-                <div className="info-inner">
-                  {renderStylized(modalData)}
-                </div>
-              )}
-
-              {!modalLoading && !modalError && !modalData && (
-                <div className="small" style={{ color: "var(--muted)" }}>No data found.</div>
-              )}
+          {/* INFORMATION */}
+          {sections.information.open && (
+            <div className="card" style={{ marginBottom: 10 }}>
+              <div className="list-header">
+                <h4 style={{ margin: 0 }}>Information</h4>
+                <div className="small" style={{ color: "var(--muted)" }}>{plant.name}</div>
+              </div>
+              <div className="modal-body" style={{ marginTop: 8 }}>
+                {sections.information.loading && <div className="small">Loading…</div>}
+                {sections.information.error && <div className="small error">Error: {sections.information.error}</div>}
+                {!sections.information.loading && !sections.information.error && sections.information.data && (
+                  <div className="info-inner">{renderStylized(sections.information.data)}</div>
+                )}
+                {!sections.information.loading && !sections.information.error && !sections.information.data && (
+                  <div className="small" style={{ color: "var(--muted)" }}>No data.</div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* LOCATION */}
+          {sections.location.open && (
+            <div className="card" style={{ marginBottom: 10 }}>
+              <div className="list-header">
+                <h4 style={{ margin: 0 }}>Location</h4>
+                <div className="small" style={{ color: "var(--muted)" }}>{plant.name}</div>
+              </div>
+              <div className="modal-body" style={{ marginTop: 8 }}>
+                {sections.location.loading && <div className="small">Loading…</div>}
+                {sections.location.error && <div className="small error">Error: {sections.location.error}</div>}
+                {!sections.location.loading && !sections.location.error && sections.location.data && (
+                  <div className="info-inner">{renderStylized(sections.location.data)}</div>
+                )}
+                {!sections.location.loading && !sections.location.error && !sections.location.data && (
+                  <div className="small" style={{ color: "var(--muted)" }}>No data.</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </>
   );
 }

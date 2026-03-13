@@ -11,8 +11,8 @@ PLANTDB_USER: postgres
 /*
 If you are doing this via render (serivce):
 
-PLANTDB_URL: jdbc:postgresql://dpg-d6d72sp4tr6s73cklc7g-a.ohio-postgres.render.com:5432/planttracker_db
-PLANTDB_USER: planttracker_db_user
+PLANTDB_URL: jdbc:postgresql://bhnjibolguuj9qrqwpr6-postgresql.services.clever-cloud.com:50013/bhnjibolguuj9qrqwpr6?sslmode=require
+PLANTDB_USER: uh8t1i1ozprgavi7ezlr
 */ 
 
 
@@ -27,12 +27,12 @@ public class DbConfig {
     public static String getJdbcUrl() {
         return System.getenv().getOrDefault(
             "PLANTDB_URL",
-            "jdbc:postgresql://dpg-d6d72sp4tr6s73cklc7g-a.ohio-postgres.render.com:5432/planttracker_db"
+            "jdbc:postgresql://bhnjibolguuj9qrqwpr6-postgresql.services.clever-cloud.com:50013/bhnjibolguuj9qrqwpr6?sslmode=require"
         );
     }
 
     public static String getUser() {
-        return System.getenv().getOrDefault("PLANTDB_USER", "planttracker_db_user");
+        return System.getenv().getOrDefault("PLANTDB_USER", "uh8t1i1ozprgavi7ezlr");
     }
 
     public static String getPassword() {
