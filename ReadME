@@ -4,17 +4,17 @@
   
   The system allows users to:
   
-  Track plants and their attributes
-  
-  Record watering and soil change information
-  
-  Store location and lighting conditions
-  
-  View and manage plant data through a web interface
+    Track plants and their attributes
+    
+    Record watering and soil change information
+    
+    Store location and lighting conditions
+    
+    View and manage plant data through a web interface
   
   The application demonstrates a layered architecture:
   
-  Frontend (React + Vite)  →  Backend API (Spring Boot)  →  Database (PostgreSQL)
+    Frontend (React + Vite)  →  Backend API (Spring Boot)  →  Database (PostgreSQL)
 
 🌐 Live Application
   Frontend (Netlify)
