@@ -41,23 +41,23 @@ public class BusinessManager {
     }
 
     public Plant savePlantAndLocation(Plant plant) throws SQLException {
-    // Save plant (existing logic handles insert vs update)
-    Plant savedPlant = savePlant(plant);
+        // Save plant (existing logic handles insert vs update)
+        Plant savedPlant = savePlant(plant);
 
-    // Propagate location_name -> locations table
-    String locName = savedPlant.getLocationName(); // assumes Plant has getLocationName()
-    if (locName != null) {
-        Location loc = locationDao.findByPlantId(savedPlant.getPlantId());
-        if (loc == null) {
-            loc = new Location();
-            loc.setPlantId(savedPlant.getPlantId());
+        // Propagate location_name -> locations table
+        String locName = savedPlant.getLocationName(); // assumes Plant has getLocationName()
+        if (locName != null) {
+            Location loc = locationDao.findByPlantId(savedPlant.getPlantId());
+            if (loc == null) {
+                loc = new Location();
+                loc.setPlantId(savedPlant.getPlantId());
+            }
+            loc.setLocationName(locName);
+            // If you had other mapping (e.g., light level in plant), set here.
+            saveLocation(loc); // This upserts by plantId
         }
-        loc.setLocationName(locName);
-        // If you had other mapping (e.g., light level in plant), set here.
-        saveLocation(loc); // This upserts by plantId
+        return savedPlant;
     }
-    return savedPlant;
-}
 
     public Plant getPlant(int id) throws SQLException {
         return plantDao.findById(id);
@@ -132,13 +132,22 @@ public class BusinessManager {
      * Save or update location record. Returns the saved Location object.
      */
     public Location saveLocation(Location location) throws SQLException {
+        // upsert location row
         Location existing = locationDao.findByPlantId(location.getPlantId());
         if (existing == null) {
             locationDao.insert(location);
-            return locationDao.findByPlantId(location.getPlantId());
+            Location saved = locationDao.findByPlantId(location.getPlantId());
+            // sync plant table location_name
+            String locName = saved != null ? saved.getLocationName() : location.getLocationName();
+            plantDao.updateLocationName(location.getPlantId(), locName);
+            return saved;
         } else {
             locationDao.updateByPlantId(location);
-            return locationDao.findByPlantId(location.getPlantId());
+            Location saved = locationDao.findByPlantId(location.getPlantId());
+            // sync plant table location_name
+            String locName = saved != null ? saved.getLocationName() : location.getLocationName();
+            plantDao.updateLocationName(location.getPlantId(), locName);
+            return saved;
         }
     }
 

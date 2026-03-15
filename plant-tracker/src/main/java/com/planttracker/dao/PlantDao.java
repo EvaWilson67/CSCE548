@@ -165,4 +165,18 @@ public class PlantDao {
             }
         }
     }
+
+    // in com.planttracker.dao.PlantDao
+    public int updateLocationName(int plantId, String locationName) throws SQLException {
+        final String sql = "UPDATE Plant SET location_name = ? WHERE Plant_ID = ?";
+        try (Connection c = DbUtil.getConnection();
+                PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, locationName);
+            ps.setInt(2, plantId);
+            int affected = ps.executeUpdate();
+            System.out.println("PlantDao.updateLocationName -> affected: " + affected + ", plantId=" + plantId
+                    + ", locationName=" + locationName);
+            return affected;
+        }
+    }
 }
