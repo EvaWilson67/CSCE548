@@ -39,19 +39,50 @@ public class PlantController {
         return ResponseEntity.ok(saved);
     }
 
+    // PlantController.java (update the method)
     @PutMapping("/plants/{id}")
     public ResponseEntity<Plant> updatePlant(@PathVariable int id, @RequestBody Plant plant) throws SQLException {
         plant.setPlantId(id);
+
+        System.out.println("updatePlant called for id=" + id + " payload=" + plant);
 
         Plant existing = mgr.getPlant(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
         }
 
-        Plant savedPlant = mgr.savePlantAndLocation(plant); // NEW manager method
-        return ResponseEntity.ok(savedPlant);
-    }
+        // If incoming payload omitted locationName, preserve existing to avoid clearing
+        // it
+        if (plant.getLocationName() == null || plant.getLocationName().trim().isEmpty()) {
+            plant.setLocationName(existing.getLocationName());
+        }
 
+        // Option A: call a manager helper that saves plant and location together
+        // (recommended)
+        Plant savedPlant;
+        try {
+            savedPlant = mgr.savePlantAndLocation(plant); // add this helper to BusinessManager if you haven't
+        } catch (NoSuchMethodError e) {
+            // Option B: fallback to explicit sequence (if you didn't add
+            // savePlantAndLocation)
+            savedPlant = mgr.savePlant(plant); // save plant row (updates plant.location_name)
+            // sync locations table
+            if (savedPlant.getLocationName() != null && !savedPlant.getLocationName().trim().isEmpty()) {
+                Location loc = mgr.getLocation(id);
+                if (loc == null)
+                    loc = new Location();
+                loc.setPlantId(id);
+                loc.setLocationName(savedPlant.getLocationName());
+                // optionally preserve existing lightLevel if you want
+                mgr.saveLocation(loc);
+            }
+        }
+
+        // Re-fetch plant to ensure returned object contains database state (optional
+        // but safer)
+        Plant reloaded = mgr.getPlant(id);
+        return ResponseEntity.ok(reloaded != null ? reloaded : savedPlant);
+    }
 
     @DeleteMapping("/plants/{id}")
     public ResponseEntity<?> deletePlant(@PathVariable int id) throws SQLException {
