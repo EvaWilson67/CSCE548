@@ -42,8 +42,14 @@ public class PlantController {
     @PutMapping("/plants/{id}")
     public ResponseEntity<Plant> updatePlant(@PathVariable int id, @RequestBody Plant plant) throws SQLException {
         plant.setPlantId(id);
-        Plant saved = mgr.savePlant(plant);
-        return ResponseEntity.ok(saved);
+
+        Plant existing = mgr.getPlant(id);
+        if (existing == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Plant savedPlant = mgr.savePlantAndLocation(plant); // NEW manager method
+        return ResponseEntity.ok(savedPlant);
     }
 
     @DeleteMapping("/plants/{id}")
@@ -88,7 +94,8 @@ public class PlantController {
     }
 
     @PostMapping("/plants/{id}/information")
-    public ResponseEntity<Information> saveInformation(@PathVariable int id, @RequestBody Information info) throws SQLException {
+    public ResponseEntity<Information> saveInformation(@PathVariable int id, @RequestBody Information info)
+            throws SQLException {
         info.setPlantId(id);
         Information saved = mgr.saveInformation(info);
         return ResponseEntity.ok(saved);
@@ -96,7 +103,8 @@ public class PlantController {
 
     // NEW: PUT for information
     @PutMapping("/plants/{id}/information")
-    public ResponseEntity<Information> updateInformation(@PathVariable int id, @RequestBody Information info) throws SQLException {
+    public ResponseEntity<Information> updateInformation(@PathVariable int id, @RequestBody Information info)
+            throws SQLException {
         info.setPlantId(id);
         Information saved = mgr.saveInformation(info);
         return ResponseEntity.ok(saved);

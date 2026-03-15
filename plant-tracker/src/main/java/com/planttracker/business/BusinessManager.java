@@ -40,6 +40,25 @@ public class BusinessManager {
         }
     }
 
+    public Plant savePlantAndLocation(Plant plant) throws SQLException {
+    // Save plant (existing logic handles insert vs update)
+    Plant savedPlant = savePlant(plant);
+
+    // Propagate location_name -> locations table
+    String locName = savedPlant.getLocationName(); // assumes Plant has getLocationName()
+    if (locName != null) {
+        Location loc = locationDao.findByPlantId(savedPlant.getPlantId());
+        if (loc == null) {
+            loc = new Location();
+            loc.setPlantId(savedPlant.getPlantId());
+        }
+        loc.setLocationName(locName);
+        // If you had other mapping (e.g., light level in plant), set here.
+        saveLocation(loc); // This upserts by plantId
+    }
+    return savedPlant;
+}
+
     public Plant getPlant(int id) throws SQLException {
         return plantDao.findById(id);
     }
