@@ -1,220 +1,340 @@
-# Hosting Overview FRONTEND (Assignment 3)
-Platform: netlify
+🌱 Plant Tracker
+
+  Plant Tracker is a full-stack web application for managing household plants and their care requirements.
+  
+  The system allows users to:
+  
+    Track plants and their attributes
+    
+    Record watering and soil change information
+    
+    Store location and lighting conditions
+    
+    View and manage plant data through a web interface
+  
+  The application demonstrates a layered architecture:
+  
+    Frontend (React + Vite)  →  Backend API (Spring Boot)  →  Database (PostgreSQL)
+
+🌐 Live Application
+  Frontend (Netlify)
+  
+  Primary URL
+  https://funny-liger-c00f87.netlify.app/
+  
+  Alternate Netlify deployment
+  https://69a26a241c8f10f797f0d67a--funny-liger-c00f87.netlify.app/
+  
+  ⚠️ The “Get All Plants” request may take several seconds to load.
+  This is due to the backend running on Render's free tier, which sleeps when inactive.
+  
+  Backend API (Render)
+  
+  Platform: Render (Cloud PaaS)
+  Service: Spring Boot REST API
+  
+  Example endpoint:
+  
+  https://csce548.onrender.com/api/plants
+  
+  
+  The backend exposes REST endpoints used by the frontend client.
+  
+  Database (Clever Cloud)
+  
+  Platform: Clever Cloud PostgreSQL
+  
+  The backend connects to the database using JDBC and environment variables.
+
+🏗️ System Architecture
+  Browser
+     │
+     ▼
+  Netlify (Frontend)
+  React + Vite
+     │
+     ▼
+  Render (Backend)
+  Spring Boot REST API
+  Business Layer
+  DAO / Data Layer
+     │
+     ▼
+  Clever Cloud
+  PostgreSQL Database
+
+📁 Project Structure
+  plant-tracker
+  ├── client/                     # React + Vite frontend
+  │   ├── public
+  │   └── src
+  │       ├── assets
+  │       └── components
+  │
+  ├── sql/                        # SQL scripts for database schema and seed data
+  │
+  ├── src/main/java/com/planttracker
+  │   ├── business                # Business layer
+  │   ├── dao                     # DAO layer
+  │   ├── data                    # Data provider
+  │   ├── model                   # Data models
+  │   ├── service/api             # REST controllers
+  │   └── config                  # Configuration classes
+  │
+  └── target/                     # Maven build output
+
+🧰 Prerequisites
+  
+  To run the project locally you will need:
+  
+  Java 17+
+  
+  Maven
+  
+  Node.js 18+
+  
+  npm
+  
+  PostgreSQL client (psql)
+  
+  Git
+  
+  Optional tools:
+  
+  Postman / Insomnia
+  
+  DBeaver / pgAdmin
+  
+  Docker
+
+🗄️ Database Setup (Clever Cloud)
+
+  Create a PostgreSQL Add-On in Clever Cloud.
+  
+  Copy the connection details:
+  
+  Host
+  
+  Port
+  
+  Database name
+  
+  Username
+  
+  Password
+  
+  Example host format:
+  
+    bhnjibolguuj9qrqwpr6-postgresql.services.clever-cloud.com
+
+💻 Creating Tables with SQL Shell
+
+  Open SQL Shell (psql) and connect using the credentials from Clever Cloud:
+  
+  psql -h <HOST> -p <PORT> -U <USERNAME> -d <DATABASE>
+  
+  
+  Enter the password when prompted.
+  
+  Create the tables by running the SQL statements located in the /sql folder.
+  
+  Example verification:
+  
+  \dt
+  
+  
+  Expected tables:
+  
+    plant
+    care
+    information
+    location
+  
+  ⚙️ Backend Configuration
+    
+    The backend reads database credentials from environment variables using DbConfig.
+    
+    PLANTDB_URL
+    PLANTDB_USER
+    PLANTDB_PASS
+  
+  
+  Example values:
+  
+    PLANTDB_URL=jdbc:postgresql://<HOST>:<PORT>/<DATABASE>?sslmode=require
+    PLANTDB_USER=<USERNAME>
+    PLANTDB_PASS=<PASSWORD>
+
+▶️ Running the Backend Locally
+
+  From the project root:
+  
+    mvn clean package
+    mvn spring-boot:run
+  
+  
+  The service will start at:
+  
+    http://localhost:8080
+  
+  
+  Example endpoint:
+  
+    http://localhost:8080/api/plants
+  
+  
+  Test with PowerShell:
+  
+    Invoke-RestMethod http://localhost:8080/api/plants
+  
+  🖥️ Running the Frontend Locally
+  
+  Navigate to the client folder:
+    
+    cd client
+    npm install
+  
+  
+  Set the API URL:
+  
+    VITE_API_BASE=http://localhost:8080/api
+  
+  
+  Start the development server:
+  
+    npm run dev
+  
+  
+  Open in browser:
+  
+    http://localhost:5173
+  
+  ☁️ Backend Deployment (Render)
+  
+  Push the repository to GitHub.
+  
+  Create a Render Web Service
+  
+  Settings:
+  
+  Build Command: mvn clean package
+  Start Command: java -jar target/planttracker-0.0.1-SNAPSHOT.jar
+  
+  
+  Configure environment variables:
+  
+  PLANTDB_URL
+  PLANTDB_USER
+  PLANTDB_PASS
+  
+  
+  Deploy the service.
+  
+  Render will generate a public URL similar to:
+  
+  https://csce548.onrender.com
+
+🌐 Frontend Deployment (Netlify)
+
+  Import the GitHub repository into Netlify.
+  
+  Configure build settings:
+  
+  Base directory: client
+  Build command: npm run build
+  Publish directory: dist
+  
+  
+  Add environment variable:
+  
+  VITE_API_BASE=https://csce548.onrender.com
+  
+  
+  Deploy the site.
+  
+  Netlify will provide a public site URL.
+
+🧪 Console Test Client
+
+  The project includes a console application used to test CRUD operations for:
+  
+  Business layer
+  
+  DAO layer
+  
+  Service layer
+  
+  Run with Maven:
+  
+    mvn compile exec:java
+  
+  
+  To change the service URL:
+  
+  Windows
+  
+    setx PLANT_SERVICE_URL "http://localhost:8080"
+  
+  
+  Mac/Linux
+  
+    export PLANT_SERVICE_URL=http://localhost:8080
+
+⚠️ Common Issues
+  Backend slow to start
+  
+  Render free tier sleeps after inactivity.
+  
+  The first request may take 30–60 seconds.
+  
+  Database connection error
+  
+  Verify environment variables:
+  
+    PLANTDB_URL
+    PLANTDB_USER
+    PLANTDB_PASS
+  
+  CORS errors
+  
+  Ensure backend WebConfig allows:
+  
+  http://localhost:5173
+  https://funny-liger-c00f87.netlify.app
+
+🔒 Security Notes
+
+  Never commit database passwords to GitHub
+  
+  Use environment variables for credentials
+  
+  Use HTTPS in production
+
+📚 Technologies Used
+
+  Backend
+  
+    Java
+    
+    Spring Boot
+    
+    Maven
+  
+  Frontend
+  
+    React
+    
+    Vite
+  
+  Infrastructure
+  
+    Render
+    
+    Netlify
+    
+    Clever Cloud PostgreSQL
+
+📜 License
+
+  This project was developed as part of a university assignment.
 
-Either of these 2 links: 
-https://funny-liger-c00f87.netlify.app/
-https://69a26a241c8f10f797f0d67a--funny-liger-c00f87.netlify.app/
-
-The get all may take a while, this is because I am cheap and am using the free version of render (ask me how I know)
-
-# Hosting Overview BACKEND (Assignment 1-2)
-
-Platform: Render (Cloud PaaS)
-
-Service:
-  - Spring Boot REST API
-  - Deployed via Docker container
-  - Public endpoint: https://csce548.onrender.com/api/plants
-
-Database:
-  - PostgreSQL (Render Managed Database)
-  - Accessed via JDBC
-  - Environment variables used for credentials
-
-Testing:
-  - ConsoleApp demonstrates full CRUD lifecycle.
-
-I will switch hosts in the future. I decided to use Render because they had a postgres host but it will be deleted in a month...
-
-# How to Run the Plant Tracker Service
-
-====================================
-1. Running Locally (Development)
-====================================
-
-Prerequisites:
-- Java 17+
-- Maven
-- PostgreSQL installed locally
-
-Step 1: Create a local PostgreSQL database
-
-Open SQL Shell (psql):
-
-CREATE DATABASE plantdb;
-
-Connect to it:
-
-\c plantdb
-
-Run the table creation script:
-
-\i db_creation_postgres.sql
-
-Step 2: Start Spring Boot Application
-
-From project root:
-
-mvn clean package
-mvn spring-boot:run
-
-Test endpoint:
-http://localhost:8080/api/plants
-
-
-====================================
-2. Running in the Cloud (Render)
-====================================
-
-The application is deployed on Render using a Docker-based Web Service
-and a managed PostgreSQL database.
-
-Public Service URL:
-https://csce548.onrender.com
-
-
-------------------------------------
-Deployment Steps
-------------------------------------
-
-1. Push the project to GitHub.
-
-2. Create a new Web Service on Render:
-   - Environment: Docker
-   - Root Directory: (project folder)
-   - Dockerfile Path: Dockerfile
-
-3. Create a PostgreSQL database on Render:
-   - Click "New" → PostgreSQL
-   - Choose region
-   - Wait for provisioning
-   - Copy:
-       Host
-       Port (5432)
-       Database name
-       Username
-       Password
-
-4. Configure environment variables in the Web Service:
-
-   PLANTDB_URL = jdbc:postgresql://<HOST>:5432/<DATABASE>
-   PLANTDB_USER = <USERNAME>
-   PLANTDB_PASS = <PASSWORD>
-
-5. Redeploy the service.
-
-
-------------------------------------
-Creating Tables Using SQL Shell
-------------------------------------
-
-After the database is created on Render, tables must be created manually.
-
-Step 1: Open SQL Shell (psql) locally.
-
-Step 2: Connect to the Render PostgreSQL database.
-
-When prompted in SQL Shell:
-
-Server:
-<Render Host>
-
-Database:
-<Render Database Name>
-
-Port:
-5432
-
-Username:
-<Render Username>
-
-Password:
-<Render Password>
-
-After successful connection, you should see:
-
-planttracker_db=>
-
-Step 3: Run the table creation SQL.
-
-Paste the following:
-
-CREATE TABLE IF NOT EXISTS Plant (
-  Plant_ID SERIAL PRIMARY KEY,
-  Name VARCHAR(100) NOT NULL,
-  Type VARCHAR(100) NOT NULL,
-  Height DECIMAL(6,2),
-  DateAcquired DATE,
-  location_name VARCHAR(100)
-);
-
-CREATE TABLE IF NOT EXISTS Care (
-  Plant_ID INT NOT NULL,
-  LastSoilChange DATE,
-  LastWatering DATE,
-  PRIMARY KEY (Plant_ID),
-  FOREIGN KEY (Plant_ID)
-    REFERENCES Plant(Plant_ID)
-    ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS Information (
-  Plant_ID INT NOT NULL,
-  FromAnotherPlant BOOLEAN DEFAULT FALSE,
-  SoilType VARCHAR(100),
-  PotSize VARCHAR(50),
-  WaterGlobeRequired BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (Plant_ID),
-  FOREIGN KEY (Plant_ID)
-    REFERENCES Plant(Plant_ID)
-    ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS Location (
-  Plant_ID INT NOT NULL,
-  location_name VARCHAR(100) NOT NULL,
-  LightLevel VARCHAR(50),
-  PRIMARY KEY (Plant_ID, location_name),
-  FOREIGN KEY (Plant_ID)
-    REFERENCES Plant(Plant_ID)
-    ON DELETE CASCADE
-);
-
-Step 4: Verify tables were created:
-
-\dt
-
-You should see:
-  plant
-  care
-  information
-  location
-
-After this, the REST endpoints are fully functional.
-
-
-====================================
-3. Running the Console Test Client
-====================================
-
-The console application tests full CRUD functionality for the business, DAO, and service
-
-When running the service, adjust the defaultLayer to be empty (will work right away, no need to adjust passwords, but may take like 1 minute to load render)
-
-For using the business or DAO, you would need to switch the DbConfig to local host to imput your own password
-In addition, you will need to change the defaultLayer to be "bus" or "data" depending on what you want to test
-
-Run using Maven:
-mvn compile exec:java
-
-
-The console client connects to:
-https://csce548.onrender.com
-
-To change the URL:
-
-Windows:
-setx PLANT_SERVICE_URL "http://localhost:8080"
-
-Mac/Linux:
-export PLANT_SERVICE_URL=http://localhost:8080
