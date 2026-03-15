@@ -27,6 +27,8 @@ export default function PlantDetail({
   startEditing = false,
   onSaved,
   onDeleted,
+  onLocationLoaded,
+  onCloseConfirmed, // NEW: called when user presses the explicit Close/OK button
 }) {
   const [plant, setPlant] = useState(null);
   const [loadingPlant, setLoadingPlant] = useState(true);
@@ -153,6 +155,15 @@ export default function PlantDetail({
           setPlant((prev) =>
             prev ? { ...prev, location: locVal.locationName } : prev,
           );
+
+          // notify parent that we loaded a location
+          if (typeof onLocationLoaded === "function") {
+            try {
+              onLocationLoaded(id, locVal.locationName);
+            } catch (e) {
+              console.error("onLocationLoaded callback threw", e);
+            }
+          }
         }
       } catch (e) {
         console.error("load subs", e);
@@ -175,20 +186,133 @@ export default function PlantDetail({
   const savePlant = async () => {
     setSavingPlant(true);
     try {
-      // Simple plant payload — do NOT include locationName here
+      // Build payload mapping the UI field `location` -> backend field `locationName`
       const payload = {
         name: plantForm.name,
         type: plantForm.type,
         height: plantForm.height,
         notes: plantForm.notes,
-        // intentionally NOT sending locationName here to avoid touching locations table
+        locationName: (plantForm.location || "").trim(),
       };
 
-      console.log("updatePlant payload (no location):", payload);
+      console.log("updatePlant payload:", payload);
       const savedPlant = await updatePlant(id, payload);
       console.log("savedPlant response:", savedPlant);
       setPlant(savedPlant);
       setEditingPlant(false);
+
+      // sync plantForm.location <-> location subresource (use payload.locationName)
+      const formLocation = (payload.locationName || "").trim();
+      const locExists = !!loc.data; // existence of subresource
+      const currentLocName = (loc.data?.locationName || "").trim();
+      const plantId = id;
+
+      if (formLocation) {
+        try {
+          if (locExists) {
+            if (currentLocName !== formLocation) {
+              const updatedLoc = await updateLocation(plantId, {
+                locationName: formLocation,
+                lightLevel: loc.data?.lightLevel ?? "",
+                notes: loc.data?.notes ?? "",
+              });
+              setLoc((prev) => ({
+                ...prev,
+                data: updatedLoc,
+                draft: {
+                  locationName: updatedLoc.locationName || "",
+                  lightLevel: updatedLoc.lightLevel || "",
+                  notes: updatedLoc.notes || "",
+                },
+              }));
+              setPlant((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      location: updatedLoc.locationName || formLocation,
+                    }
+                  : prev,
+              );
+
+              // notify parent of updated location
+              if (typeof onLocationLoaded === "function") {
+                try {
+                  onLocationLoaded(
+                    plantId,
+                    updatedLoc.locationName || formLocation,
+                  );
+                } catch (e) {
+                  console.error("onLocationLoaded callback threw", e);
+                }
+              }
+            } else {
+              console.log("location unchanged, no updateLocation called");
+            }
+          } else {
+            const createdLoc = await createLocation(plantId, {
+              locationName: formLocation,
+            });
+            setLoc((prev) => ({
+              ...prev,
+              data: createdLoc,
+              draft: {
+                locationName: createdLoc.locationName || "",
+                lightLevel: createdLoc.lightLevel || "",
+                notes: createdLoc.notes || "",
+              },
+            }));
+            setPlant((prev) =>
+              prev
+                ? { ...prev, location: createdLoc.locationName || formLocation }
+                : prev,
+            );
+
+            // notify parent of created location
+            if (typeof onLocationLoaded === "function") {
+              try {
+                onLocationLoaded(
+                  plantId,
+                  createdLoc.locationName || formLocation,
+                );
+              } catch (e) {
+                console.error("onLocationLoaded callback threw", e);
+              }
+            }
+          }
+        } catch (locErr) {
+          console.error("sync location after savePlant failed", locErr);
+        }
+      } else {
+        if (loc.data && loc.data.locationName) {
+          try {
+            await deleteLocation(plantId);
+            setLoc({
+              loading: false,
+              data: null,
+              editing: false,
+              draft: { locationName: "", lightLevel: "", notes: "" },
+              saving: false,
+            });
+
+            setPlant((prev) => (prev ? { ...prev, location: "" } : prev));
+            setPlantForm((prev) => ({ ...prev, location: "" }));
+
+            // notify parent that location was removed
+            if (typeof onLocationLoaded === "function") {
+              try {
+                onLocationLoaded(plantId, "");
+              } catch (e) {
+                console.error("onLocationLoaded callback threw", e);
+              }
+            }
+          } catch (delErr) {
+            console.error(
+              "failed to delete location after clearing plant location field",
+              delErr,
+            );
+          }
+        }
+      }
 
       if (onSaved) onSaved(savedPlant);
     } catch (e) {
@@ -411,6 +535,15 @@ export default function PlantDetail({
       setPlant((prev) =>
         prev ? { ...prev, location: saved.locationName || "" } : prev,
       );
+
+      // notify parent that location changed/loaded
+      if (typeof onLocationLoaded === "function") {
+        try {
+          onLocationLoaded(id, saved.locationName || "");
+        } catch (e) {
+          console.error("onLocationLoaded callback threw", e);
+        }
+      }
     } catch (e) {
       alert("Save location failed: " + (e.message || e));
       setLoc((l) => ({ ...l, saving: false }));
@@ -430,6 +563,15 @@ export default function PlantDetail({
       });
       setPlantForm((prev) => ({ ...prev, location: "" }));
       setPlant((prev) => (prev ? { ...prev, location: "" } : prev));
+
+      // notify parent that location was removed
+      if (typeof onLocationLoaded === "function") {
+        try {
+          onLocationLoaded(id, "");
+        } catch (e) {
+          console.error("onLocationLoaded callback threw", e);
+        }
+      }
     } catch (e) {
       alert("Delete location failed: " + (e.message || e));
     }
@@ -449,7 +591,20 @@ export default function PlantDetail({
           <div className="modal-header">
             <h3 style={{ margin: 0 }}>Plant not found</h3>
             <div className="controls">
-              <button className="btn ghost" onClick={onClose}>
+              <button
+                className="btn ghost"
+                onClick={() => {
+                  // Explicit user "OK/Close" — ask parent to refresh, then close modal
+                  if (typeof onCloseConfirmed === "function") {
+                    try {
+                      onCloseConfirmed();
+                    } catch (e) {
+                      console.error("onCloseConfirmed threw", e);
+                    }
+                  }
+                  onClose();
+                }}
+              >
                 Close
               </button>
             </div>
