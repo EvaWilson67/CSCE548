@@ -302,7 +302,7 @@ export default function AddPlantModal({ open, onClose, onCreated }) {
           </fieldset>
 
           <div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label htmlFor="plant-notes" className="small-muted" style={{ fontSize: 13, marginBottom: 4 }}>
                 Notes
               </label>
@@ -314,7 +314,7 @@ export default function AddPlantModal({ open, onClose, onCreated }) {
                 onValueChange={(v) => changePlant("notes", v)}
                 placeholder="Optional notes"
               />
-            </div>
+            </div> */}
           </div>
 
           <hr />
@@ -360,7 +360,7 @@ export default function AddPlantModal({ open, onClose, onCreated }) {
               </div>
             </div>
 
-            <div style={{ marginTop: 10 }}>
+            {/* <div style={{ marginTop: 10 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label htmlFor="care-notes" className="small-muted" style={{ fontSize: 13, marginBottom: 4 }}>
                   Care notes
@@ -373,7 +373,7 @@ export default function AddPlantModal({ open, onClose, onCreated }) {
                   placeholder="e.g. prefers slightly dry soil"
                 />
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Information */}
@@ -467,7 +467,7 @@ export default function AddPlantModal({ open, onClose, onCreated }) {
                 </div>
               </div>
             </div>
-
+{/* 
             <div style={{ marginTop: 10 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label htmlFor="location-notes" className="small-muted" style={{ fontSize: 13, marginBottom: 4 }}>
@@ -481,7 +481,7 @@ export default function AddPlantModal({ open, onClose, onCreated }) {
                   placeholder="Optional notes about the spot"
                 />
               </div>
-            </div>
+            </div> */}
           </div>
 
           {error && <div role="alert" style={{ color: "crimson", fontSize: 13 }}>{error}</div>}
