@@ -730,9 +730,9 @@ export default function PlantDetail({
                     ? formatDateDisplay(care.data.lastSoilChange)
                     : "(none)"}
                 </div>
-                <div style={{ marginTop: 8 }}>
+                {/* <div style={{ marginTop: 8 }}>
                   {care.data.notes || "(no notes)"}
-                </div>
+                </div> */}
               </div>
             )}
 
@@ -774,14 +774,14 @@ export default function PlantDetail({
                     }
                   />
                 </div>
-                <div style={{ marginTop: 8 }}>
+                {/* <div style={{ marginTop: 8 }}>
                   <textarea
                     className="input"
                     placeholder="Notes"
                     value={care.draft.notes || ""}
                     onChange={(e) => changeCareDraft("notes", e.target.value)}
                   />
-                </div>
+                </div> */}
                 <div className="actions" style={{ marginTop: 8 }}>
                   <button
                     className="btn accent"
@@ -943,9 +943,9 @@ export default function PlantDetail({
                 <div className="small-muted">
                   Light level: {loc.data.lightLevel || "(none)"}
                 </div>
-                <div style={{ marginTop: 8 }}>
+                {/* <div style={{ marginTop: 8 }}>
                   {loc.data.notes || "(no notes)"}
-                </div>
+                </div> */}
               </div>
             )}
 
@@ -973,14 +973,14 @@ export default function PlantDetail({
                     }
                   />
                 </div>
-                <div style={{ marginTop: 8 }}>
+                {/* <div style={{ marginTop: 8 }}>
                   <textarea
                     className="input"
                     placeholder="Notes"
                     value={loc.draft.notes || ""}
                     onChange={(e) => changeLocDraft("notes", e.target.value)}
                   />
-                </div>
+                </div> */}
                 <div className="actions" style={{ marginTop: 8 }}>
                   <button
                     className="btn accent"
