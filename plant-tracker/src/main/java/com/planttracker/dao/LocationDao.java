@@ -19,59 +19,68 @@ public class LocationDao {
     public int insert(Location loc) throws SQLException {
         String sql = "INSERT INTO Location (Plant_ID, location_name, LightLevel) VALUES (?, ?, ?)";
         try (Connection c = DbUtil.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setInt(1, loc.getPlantId());
             ps.setString(2, loc.getLocationName());
             ps.setString(3, loc.getLightLevel());
-            return ps.executeUpdate();
+            int affected = ps.executeUpdate();
+            System.out.println("LocationDao.insert -> affected: " + affected + ", plantId=" + loc.getPlantId() + ", locationName=" + loc.getLocationName());
+            return affected;
         }
     }
 
     /**
-     * Update the Location row identified by Plant_ID and location_name.
-     * If you model only one location per plant, consider using WHERE Plant_ID = ?
-     * instead.
+     * Update the Location row identified by Plant_ID.
+     * Now updates the location_name and LightLevel for the plant_id.
      */
     public int updateByPlantId(Location loc) throws SQLException {
-        String sql = "UPDATE Location SET LightLevel = ? WHERE Plant_ID = ? AND location_name = ?";
+        String sql = "UPDATE Location SET location_name = ?, LightLevel = ? WHERE Plant_ID = ?";
         try (Connection c = DbUtil.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, loc.getLightLevel());
-            ps.setInt(2, loc.getPlantId());
-            ps.setString(3, loc.getLocationName());
-            return ps.executeUpdate();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            // set new values (name first, then light level)
+            ps.setString(1, loc.getLocationName());
+            ps.setString(2, loc.getLightLevel());
+            ps.setInt(3, loc.getPlantId());
+
+            int affected = ps.executeUpdate();
+            System.out.println("LocationDao.updateByPlantId SQL: " + sql + " params: [locationName=" + loc.getLocationName() + ", lightLevel=" + loc.getLightLevel() + ", plantId=" + loc.getPlantId() + "] -> affected rows: " + affected);
+            return affected;
         }
     }
 
     public int deleteByPlantIdAndName(int plantId, String locationName) throws SQLException {
         String sql = "DELETE FROM Location WHERE Plant_ID = ? AND location_name = ?";
         try (Connection c = DbUtil.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, plantId);
             ps.setString(2, locationName);
-            return ps.executeUpdate();
+            int affected = ps.executeUpdate();
+            System.out.println("LocationDao.deleteByPlantIdAndName -> affected: " + affected + ", plantId=" + plantId + ", locationName=" + locationName);
+            return affected;
         }
     }
 
     public int deleteByPlantId(int plantId) throws SQLException {
         String sql = "DELETE FROM Location WHERE Plant_ID = ?";
         try (Connection c = DbUtil.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, plantId);
-            return ps.executeUpdate();
+            int affected = ps.executeUpdate();
+            System.out.println("LocationDao.deleteByPlantId -> affected: " + affected + ", plantId=" + plantId);
+            return affected;
         }
     }
 
     /**
      * Find a single Location for a plant. If you expect multiple locations for a
-     * plant,
-     * use findAllForPlant instead.
+     * plant, use findAllForPlant instead.
      */
     public Location findByPlantId(int plantId) throws SQLException {
         String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ?";
         try (Connection c = DbUtil.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
+             PreparedStatement ps = c.prepareStatement(sql)) {
 
             ps.setInt(1, plantId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -91,10 +100,12 @@ public class LocationDao {
     public int renameLocationForPlant(int plantId, String newLocationName) throws SQLException {
         String sql = "UPDATE Location SET location_name = ? WHERE Plant_ID = ?";
         try (Connection c = DbUtil.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, newLocationName);
             ps.setInt(2, plantId);
-            return ps.executeUpdate(); // returns number of rows updated
+            int affected = ps.executeUpdate();
+            System.out.println("LocationDao.renameLocationForPlant -> affected: " + affected + ", plantId=" + plantId + ", newLocationName=" + newLocationName);
+            return affected; // returns number of rows updated
         }
     }
 
@@ -106,7 +117,7 @@ public class LocationDao {
         String sql = "SELECT Plant_ID, location_name, LightLevel FROM Location WHERE Plant_ID = ?";
         List<Location> out = new ArrayList<>();
         try (Connection c = DbUtil.getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
+             PreparedStatement ps = c.prepareStatement(sql)) {
 
             ps.setInt(1, plantId);
             try (ResultSet rs = ps.executeQuery()) {

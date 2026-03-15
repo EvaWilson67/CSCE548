@@ -23,10 +23,6 @@ export default function PlantForm({ value = {}, onChange, onSubmit, onCancel, su
         <input className="input" placeholder="Location (optional)" value={value.location||""} onChange={change("location")} />
       </div>
 
-      <div style={{marginTop:8}}>
-        <textarea className="input" placeholder="Notes (optional)" value={value.notes||""} onChange={change("notes")} style={{width:"100%", minHeight:80}} />
-      </div>
-
       <div className="actions">
         <button className="btn accent" type="submit" disabled={submitting}>{submitting ? "Saving…" : "Save"}</button>
         <button type="button" className="btn ghost" onClick={onCancel}>Cancel</button>

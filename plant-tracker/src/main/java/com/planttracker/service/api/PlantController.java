@@ -52,6 +52,7 @@ public class PlantController {
         return ResponseEntity.ok(savedPlant);
     }
 
+
     @DeleteMapping("/plants/{id}")
     public ResponseEntity<?> deletePlant(@PathVariable int id) throws SQLException {
         mgr.deletePlant(id);
